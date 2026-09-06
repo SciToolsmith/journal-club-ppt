@@ -1,0 +1,73 @@
+{
+  "schema_version": "1.0",
+  "template_id": "k105-blue",
+  "purpose": "Public semantic layout IDs for the editable component renderer; original reference files and screenshots are not distributed.",
+  "slide_size": {
+    "width_emu": 12192000,
+    "height_emu": 6858000,
+    "width_inches": 13.333333333333334,
+    "height_inches": 7.5,
+    "aspect_ratio": "16:9"
+  },
+  "source_sha256": "78a5f8b435656adc363c6f827fcdd588f0a85ace9c5d6fbb9bf31bd4a25a7282",
+  "source_distribution": "not-included",
+  "layouts": [
+    {
+      "layout_id": "cover",
+      "label": "封面与结束页",
+      "purpose": "汇报主题、汇报人和日期；结束页可选，计入用户确认的总页数。"
+    },
+    {
+      "layout_id": "contents",
+      "label": "目录与章节过渡",
+      "purpose": "文献列表和当前章节提示；可按总页数省略过渡页。"
+    },
+    {
+      "layout_id": "paper-info",
+      "label": "文献信息",
+      "purpose": "展示真实题名/论文首页、书目信息、关键词和主要研究问题。"
+    },
+    {
+      "layout_id": "background",
+      "label": "背景、问题与意义",
+      "purpose": "一张背景图配研究背景、知识缺口或研究问题；综述也可使用。"
+    },
+    {
+      "layout_id": "methods",
+      "label": "方法与实验流程",
+      "purpose": "解释实验或方法模块的目的、输入输出与顺序；不强加给没有实验的综述。"
+    },
+    {
+      "layout_id": "results-table-chart",
+      "label": "原生数据表与折线图",
+      "purpose": "有可靠原始数值时，使用可编辑表格和图表呈现结果。"
+    },
+    {
+      "layout_id": "results-two-figures",
+      "label": "双图证据与结论",
+      "purpose": "并排说明两个相关实验，或比较两组证据；P8带底部结论区。"
+    },
+    {
+      "layout_id": "results-three-figures",
+      "label": "三组实验结果",
+      "purpose": "三个简短实验或同一问题的三种证据；只用于图表足够清晰的场景。"
+    },
+    {
+      "layout_id": "results-evidence-chain",
+      "label": "证据到结论",
+      "purpose": "两项证据经文字解释汇总成一组研究结论。"
+    },
+    {
+      "layout_id": "synthesis",
+      "label": "总结、借鉴与阅读反思",
+      "purpose": "单篇总结或多篇综合：共同发现、差异、局限和阅读启示；不填入个人实验进展。"
+    }
+  ],
+  "adapted_layouts": [
+    {
+      "origin": "new adaptation; no direct source slide",
+      "guidance": "沿用#32497B、白底、左上标题和细分隔线；用原生表格比较研究问题/方法/关键证据/结论边界，最多4篇同页，更多拆页。不得标为原模板自带版式。",
+      "layout_id": "cross-paper-comparison"
+    }
+  ]
+}

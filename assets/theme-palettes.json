@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "purpose": "Four selectable color themes for the existing editable K105 journal-club layouts. Scientific source images retain their original colors.",
+  "supporting_color_policy": "Source primary colors are preserved exactly. New theme light backgrounds, rules and muted reverse text are sRGB blends with white (10%, 40%, 20% primary respectively); neutrals stay consistent. Existing blue support colors are preserved for compatibility. No institution logos or defense-specific content are imported.",
+  "themes": [
+    {
+      "theme_id": "blue",
+      "label": "蓝色",
+      "colors": {
+        "primary": "#32497B",
+        "light": "#E9EDF5",
+        "rule": "#A9B6D0",
+        "ink": "#252B35",
+        "gray": "#626873",
+        "white": "#FFFFFF",
+        "on_primary": "#FFFFFF",
+        "muted_on_primary": "#D6DBE5"
+      },
+      "source": {
+        "filename": "K105-蓝色-无校徽版-组会文献汇报PPT模板-多篇文献版.pptx",
+        "sha256": "78a5f8b435656adc363c6f827fcdd588f0a85ace9c5d6fbb9bf31bd4a25a7282",
+        "primary_locator": "ppt/slides/slide25.xml: native blue closing band, also used by the existing K105 components."
+      },
+      "white_on_primary_contrast": 8.84
+    },
+    {
+      "theme_id": "teal",
+      "label": "青色",
+      "colors": {
+        "primary": "#2F6B76",
+        "light": "#EAF0F1",
+        "rule": "#ACC4C8",
+        "ink": "#252B35",
+        "gray": "#626873",
+        "white": "#FFFFFF",
+        "on_primary": "#FFFFFF",
+        "muted_on_primary": "#D5E1E4"
+      },
+      "source": {
+        "filename": "毕业答辩PPT（青色）.pptx",
+        "sha256": "5928d5ba037f9f2d2d7eddb50815f0ac3dbbc0b773a9fdd811afe1b91c5c3f6f",
+        "primary_locator": "ppt/slides/slide1.xml, p:sp with cNvPr id=8; native solidFill accent1 on 12192000×2529079 EMU cover band; resolved via theme1.xml accent1. Also repeated slide3 id21 and slide4 id51.",
+        "original_light": "#9CCED8",
+        "original_light_locator": "ppt/slides/slide2.xml, p:sp cNvPr id=26, solidFill accent2, lumMod=40000, lumOff=60000. HEX computed by DrawingML HSL luminance transforms; renderer rounding may differ by 1 channel level.",
+        "original_rule": "#2F6B76"
+      },
+      "white_on_primary_contrast": 6.02
+    },
+    {
+      "theme_id": "red",
+      "label": "红色",
+      "colors": {
+        "primary": "#AD2C34",
+        "light": "#F7EAEB",
+        "rule": "#DEABAE",
+        "ink": "#252B35",
+        "gray": "#626873",
+        "white": "#FFFFFF",
+        "on_primary": "#FFFFFF",
+        "muted_on_primary": "#EFD5D6"
+      },
+      "source": {
+        "filename": "毕业答辩PPT03(红色).pptx",
+        "sha256": "3f19dcdfb2532843b58cd7b3b34eac1234e1e7cde3f4a34a528ec19bbe4e7226",
+        "primary_locator": "ppt/slides/slide1.xml, p:sp with cNvPr id=8; native solidFill accent1 on 12192000×2529079 EMU cover band; resolved via theme1.xml accent1. Also repeated slide3 id21 and slide4 id51.",
+        "original_light": "#E7A2A6",
+        "original_light_locator": "ppt/slides/slide2.xml, p:sp cNvPr id=26, solidFill accent2, lumMod=40000, lumOff=60000. HEX computed by DrawingML HSL luminance transforms; renderer rounding may differ by 1 channel level.",
+        "original_rule": "#AD2C34"
+      },
+      "white_on_primary_contrast": 6.59
+    },
+    {
+      "theme_id": "purple",
+      "label": "紫色",
+      "colors": {
+        "primary": "#671D6F",
+        "light": "#F0E8F1",
+        "rule": "#C2A5C5",
+        "ink": "#252B35",
+        "gray": "#626873",
+        "white": "#FFFFFF",
+        "on_primary": "#FFFFFF",
+        "muted_on_primary": "#E1D2E2"
+      },
+      "source": {
+        "filename": "毕业答辩PPT03（紫色）.pptx",
+        "sha256": "d20975d8761be881bbf7ec9f6ab8fde0e80336f7c3d9307859472b1831b9037b",
+        "primary_locator": "ppt/slides/slide1.xml, p:sp with cNvPr id=8; native solidFill accent1 on 12192000×2529079 EMU cover band; resolved via theme1.xml accent1. Also repeated slide3 id21 and slide4 id51.",
+        "original_light": "#D88AE0",
+        "original_light_locator": "ppt/slides/slide2.xml, p:sp cNvPr id=26, solidFill accent2, lumMod=40000, lumOff=60000. HEX computed by DrawingML HSL luminance transforms; renderer rounding may differ by 1 channel level.",
+        "original_rule": "#671D6F"
+      },
+      "white_on_primary_contrast": 10.6
+    }
+  ]
+}

@@ -1,5 +1,4 @@
 interface:
-  display_name: "Paper Club PPT"
-  short_description: "把单篇或多篇论文制作成证据可追溯的组会PPT"
-  brand_color: "#364A7C"
-  default_prompt: "使用 $paper-club-ppt 根据我上传的研究论文制作组会汇报PPT，讲清研究问题、核心证据和边界，保留讲稿备注与来源。"
+  display_name: "组会文献汇报"
+  short_description: "解析单篇或多篇论文，结合关键证据与原文图表制作中文组会汇报PPT"
+  default_prompt: "使用 $journal-club-ppt，把我上传的论文制作成中文组会文献汇报 PPT。先同时询问总页数和蓝、青、红、紫四种主题色并等待我的回答；已回答的项不重复询问。"
