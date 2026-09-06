@@ -1,8 +1,8 @@
 <div align="center">
 
-<h1>Journal Club PPT</h1>
-
-<p><strong>将一篇或多篇论文，整理成可编辑的中文组会汇报。</strong></p>
+<p>
+  <img src="assets/readme/journal-club-ppt-banner.png" width="1200" alt="Journal Club PPT：从科研论文到可编辑的中文组会汇报，支持单篇精读、多篇比较与原文证据整理" />
+</p>
 
 <p>面向 Codex 的文献组会 Skill，支持单篇精读与多篇比较。</p>
 
