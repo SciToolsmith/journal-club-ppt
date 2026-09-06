@@ -37,3 +37,9 @@ assets/branding/university-logos/catalog.json
 # Python caches used by optional helper tooling
 __pycache__/
 *.py[cod]
+
+# Private task data and third-party reference presentations
+_work/
+output/
+assets/k105-blue/reference.pptx
+assets/k105-blue/previews/

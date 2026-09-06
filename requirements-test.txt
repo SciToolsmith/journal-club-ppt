@@ -1,0 +1,5 @@
+# Public portable-test dependencies; versions match the validated Codex Python 3.12 runtime.
+# PPTX authoring/rendering uses the host-provided runtime, not a PyPI/npm substitute.
+pypdf==6.10.0
+pypdfium2==5.13.0
+Pillow==12.3.0

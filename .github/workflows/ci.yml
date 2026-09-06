@@ -1,4 +1,4 @@
-name: Paper Club PPT validation
+name: Journal Club PPT validation
 
 on:
   push:
@@ -14,57 +14,56 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  validate:
+  portable-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    strategy:
-      matrix:
-        node-version: [18, 22]
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-test.txt
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: "22"
 
-      - name: Install Poppler runtime
-        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      - name: Install public test dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements-test.txt
 
-      - name: Validate skill scaffold
-        run: node scripts/validate-skill-assets.mjs . --profile scaffold --strict
+      - name: Test workflow contracts and PDF source preparation
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
 
-      - name: Run deterministic contract evals
-        run: node scripts/run-skill-evals.mjs --skill-dir .
-
-      - name: Test bundled MathJax renderer
-        run: node tests/mathjax-formula-render.test.mjs
-
-      - name: Test paper asset extraction
-        run: node tests/paper-asset-extraction.test.mjs
-
-      - name: Test group-meeting scientific content contract
+      - name: Test portable deck and navigation logic
+        # Real PPTX export/render/finalization tests require the Codex host runtime.
+        # Keep their explicit skips visible; never substitute a mock renderer.
         run: |
-          node tests/group-meeting-shell-contract.test.mjs
-          node tests/intake-controls.test.mjs
-          node tests/scientific-content-contract.test.mjs
+          env -u RUNTIME_NODE_MODULES -u RUNTIME_PYTHON \
+            -u BUILDER_TEST_WORKDIR -u BUILDER_PRESENTATIONS_SKILL \
+            node --test tests/test_build_deck.mjs tests/test_navigation.mjs
 
-      - name: Test evidence closure and scientific design
+      - name: Explain validation scope
+        if: always()
         run: |
-          node tests/p0-security-and-evidence.test.mjs
-          node tests/scientific-design-quality.test.mjs
-          node tests/build-project-cache.test.mjs
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          Public CI runs Python workflow/source-preparation tests (including real PDFium PDF rendering and cropping) and portable Node deck/navigation tests.
 
-      - name: Check portable release package
-        if: matrix.node-version == 22
-        run: node scripts/package-skill.mjs --skill-dir . --check
+          Three Node integration tests are explicitly skipped because they require the Codex artifact-tool runtime and, for finalization, the installed Presentations skill. This workflow does not validate PPTX export, PPTX rendering, fonts, or human/agent visual review. Run those integrations in the supported Codex host before claiming that a generated deck is ready for delivery.
+          EOF
 
   required-validation:
+    # Branch protection requires this exact final check name.
     name: validate
     if: always()
-    needs: validate
+    needs: portable-tests
     runs-on: ubuntu-latest
     steps:
-      - name: Require every portable validation job
-        run: test "${{ needs.validate.result }}" = "success"
+      - name: Require portable validation to succeed
+        run: test "${{ needs.portable-tests.result }}" = "success"
