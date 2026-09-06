@@ -5,19 +5,23 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import posixpath
 import re
 import shutil
+import subprocess
 import sys
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
 from zipfile import ZipFile
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 SKILL_ROOT = Path(__file__).resolve().parents[1]
 QUESTION = "你希望这次文献组会汇报 PPT 一共多少页？（包含封面、目录、结束页等实际使用的页面）"
 THEME_QUESTION = "这次 PPT 想用哪种主题色？（蓝色、青色、红色、紫色）"
+PRESENTER_QUESTION = "PPT 上的汇报人姓名填什么？如果不需要显示，请明确回答“不显示”。"
 THEME_LABELS = {"blue": "蓝色", "teal": "青色", "red": "红色", "purple": "紫色"}
 THEME_CATALOG = SKILL_ROOT / "assets/theme-palettes.json"
 COLOR_ROLES = {"primary", "light", "rule", "ink", "gray", "white", "on_primary", "muted_on_primary"}
@@ -74,7 +78,19 @@ def workspace(path):
     return path
 
 
-def initialize(workdir, pdfs):
+def report_timezone(name):
+    """An explicit IANA zone is portable; null deliberately means the local zone."""
+    if name is None:
+        return None
+    require(isinstance(name, str) and bool(name.strip()) and name == name.strip(),
+            "汇报日期时区必须是 IANA 时区名称，例如 Asia/Shanghai。")
+    try:
+        return ZoneInfo(name)
+    except (ValueError, ZoneInfoNotFoundError) as exc:
+        raise ContractError(f"未知 IANA 时区：{name}") from exc
+
+
+def initialize(workdir, pdfs, timezone_name=None):
     root = workspace(workdir)
     require(not (root / "_work/run.json").exists(), "任务已存在，不能覆盖。")
     require(bool(pdfs), "至少提供一篇 PDF。")
@@ -82,8 +98,9 @@ def initialize(workdir, pdfs):
     require(len(set(paths)) == len(paths), "同一 PDF 路径重复输入。")
     for path in paths:
         require(path.is_file() and path.suffix.lower() == ".pdf", f"PDF 文件不存在：{path}")
+    report_timezone(timezone_name)
     state = {
-        "schema_version": 3,
+        "schema_version": 4,
         "status": "awaiting_page_count",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "page_question": QUESTION,
@@ -92,11 +109,15 @@ def initialize(workdir, pdfs):
         "theme_question": THEME_QUESTION,
         "theme_id": None,
         "theme_user_answer": None,
+        "presenter_question": PRESENTER_QUESTION,
+        "presenter_name": None,
+        "presenter_user_answer": None,
+        "presenter_omitted": False,
+        "report_timezone": timezone_name,
         "inputs": [{"paper_id": f"P{i}", "path": str(p)} for i, p in enumerate(paths, 1)],
     }
     save_json(root / "_work/run.json", state)
-    return {"status": state["status"], "question": QUESTION, "theme_question": THEME_QUESTION,
-            "theme_options": [{"theme_id": theme, "label": label} for theme, label in THEME_LABELS.items()]}
+    return {"status": state["status"], "question": QUESTION}
 
 
 def confirm_pages(workdir, pages, user_answer):
@@ -122,6 +143,52 @@ def confirm_theme(workdir, theme, user_answer):
     state.update(theme_id=theme, theme_user_answer=user_answer.strip())
     save_json(root / "_work/run.json", state)
     return {"status": state["status"], "theme_id": theme, "theme_label": THEME_LABELS[theme]}
+
+
+def confirm_presenter(workdir, name=None, user_answer=None, omit=False):
+    """Record an existing user statement or the answer to the presenter question."""
+    root = workspace(workdir)
+    state = load_json(root / "_work/run.json")
+    require(state.get("status") != "delivered", "任务已交付，不能静默修改汇报人。")
+    require(state.get("status") in {"awaiting_page_count", "page_count_confirmed"},
+            "任务状态不支持确认汇报人。")
+    require(type(omit) is bool and ((name is not None) != omit), "必须提供汇报人姓名，或明确选择不显示；两者不能同时使用。")
+    require(isinstance(user_answer, str) and bool(user_answer.strip()), "必须记录用户真实的汇报人回答。")
+    if not omit:
+        require(isinstance(name, str) and bool(name.strip()), "汇报人姓名不能为空。")
+        require(not re.fullmatch(r"X{2,}|待填(?:写)?|未提供", name.strip(), re.I),
+                "汇报人不能使用模板占位姓名；不显示须由用户明确选择。")
+    state.update(presenter_name=None if omit else name.strip(),
+                 presenter_user_answer=user_answer.strip(), presenter_omitted=omit)
+    save_json(root / "_work/run.json", state)
+    return {"status": state["status"], "presenter_name": state["presenter_name"],
+            "presenter_omitted": omit}
+
+
+def get_report(workdir):
+    """Resolve cover metadata at generation time without gating source analysis."""
+    root = workspace(workdir)
+    state = load_json(root / "_work/run.json")
+    name, answer = state.get("presenter_name"), state.get("presenter_user_answer")
+    omitted = state.get("presenter_omitted", False)
+    legacy = state.get("schema_version", 1) < 4 and name is None and not answer
+    if legacy:
+        omitted = True
+    else:
+        require(isinstance(answer, str) and bool(answer.strip()),
+                "必须先询问汇报人，并等待用户真实回答；用户已提供姓名时直接记录，不重复提问。")
+        require(type(omitted) is bool, "presenter_omitted 必须为布尔值。")
+        require((omitted and name is None) or (not omitted and isinstance(name, str) and bool(name.strip())),
+                "汇报人记录无效：须有真实姓名，或用户明确要求不显示。")
+        if not omitted:
+            require(not re.fullmatch(r"X{2,}|待填(?:写)?|未提供", name.strip(), re.I), "汇报人不能使用模板占位姓名。")
+            name = name.strip()
+    zone_name = state.get("report_timezone")
+    zone = report_timezone(zone_name)
+    current = datetime.now(zone) if zone is not None else datetime.now().astimezone()
+    return {"status": "ready", "presenter_name": name, "presenter_omitted": omitted,
+            "report_date": current.strftime("%Y.%m.%d"), "report_timezone": zone_name,
+            "legacy_default": legacy}
 
 
 def get_theme(workdir):
@@ -173,14 +240,32 @@ def list_field(obj, key):
     return value
 
 
+def evidence_review_level(item):
+    """Normalize explicit review records without claiming unrecorded legacy work."""
+    level = item.get("review_level")
+    eid = item.get("evidence_id")
+    if "review_level" in item:
+        require(isinstance(level, str) and level in {"screened", "verified"},
+                f"{eid} review_level 必须是 screened 或 verified。")
+        require(not (level == "screened" and item.get("reviewed") is True),
+                f"{eid} review_level=screened 与 reviewed=true 矛盾。")
+        require(not (level == "verified" and item.get("reviewed") is False),
+                f"{eid} review_level=verified 与 reviewed=false 矛盾。")
+    if level is not None:
+        return level
+    return "verified" if item.get("reviewed") is True else None
+
+
 def check_plan(workdir):
     root, state = confirmed_state(workdir)
     try:
         from pypdf import PdfReader
     except ImportError as exc:
         raise ContractError("来源页数核验需要 pypdf；请使用工作区依赖运行时。") from exc
-    papers = list_field(load_json(root / "_work/papers.json"), "papers")
-    slides = list_field(load_json(root / "_work/deck-plan.json"), "slides")
+    paper_data = load_json(root / "_work/papers.json")
+    plan = load_json(root / "_work/deck-plan.json")
+    papers = list_field(paper_data, "papers")
+    slides = list_field(plan, "slides")
     inputs = {item["paper_id"]: Path(item["path"]) for item in state["inputs"]}
     require(len(papers) == len(inputs), "来源记录必须覆盖每篇输入 PDF。")
     seen_papers, evidence, warnings, records, evidence_records = set(), {}, [], {}, {}
@@ -200,13 +285,15 @@ def check_plan(workdir):
                 f"{pid} 来源页数与真实 PDF 不一致。")
         require(paper.get("source_sha256") == sha256(source), f"{pid} PDF 散列不匹配。")
         if role == "primary":
-            require(paper.get("main_evidence_reviewed") is True, f"{pid} 尚未记录主图表已审阅。")
+            require(paper.get("main_evidence_screened") is True or paper.get("main_evidence_reviewed") is True,
+                    f"{pid} 尚未记录主图表已完成实际筛查或审阅。")
         for item in list_field(paper, "evidence"):
             eid = item.get("evidence_id")
             require(isinstance(eid, str) and eid.startswith(pid + ":")
                     and len(eid) > len(pid) + 1 and eid not in evidence,
                     f"证据编号缺失、重复或归属错误：{eid}")
             require(item.get("kind") in {"figure", "table", "equation", "text"}, f"{eid} kind 无效。")
+            evidence_review_level(item)
             require(isinstance(item.get("locator"), str) and item["locator"].strip(), f"{eid} 缺少来源定位。")
             page = item.get("pdf_page")
             require(page is None or (positive_int(page) and page <= page_count), f"{eid} 引用页码越界。")
@@ -224,7 +311,9 @@ def check_plan(workdir):
     for pid, paper in records.items():
         if paper.get("source_role", "primary") != "primary":
             continue
-        if state.get("schema_version", 1) >= 2 or "main_evidence_ids" in paper:
+        if (state.get("schema_version", 1) >= 2 or "main_evidence_ids" in paper
+                or "main_evidence_screened" in paper
+                or any("review_level" in item for item in paper["evidence"])):
             inventory = list_field(paper, "main_evidence_ids")
             require(all(isinstance(e, str) for e in inventory) and len(inventory) == len(set(inventory)),
                     f"{pid} 主图表清单存在重复或无效编号。")
@@ -232,7 +321,11 @@ def check_plan(workdir):
                 item = evidence_records.get(eid, {})
                 require(evidence.get(eid) == pid and item.get("kind") in {"figure", "table"},
                         f"{pid} 主图表清单引用无效：{eid}")
-                require(item.get("reviewed") is True, f"{eid} 主图表尚未完成实际审阅。")
+                require(evidence_review_level(item) in {"screened", "verified"},
+                        f"{eid} 主图表尚未完成实际审阅或筛查。")
+                if paper.get("main_evidence_reviewed") is True:
+                    require(evidence_review_level(item) == "verified",
+                            f"{eid} main_evidence_reviewed=true 要求全部主图表完成详细核验（verified）。")
     primary_ids = {pid for pid, paper in records.items() if paper.get("source_role", "primary") == "primary"}
     require(bool(primary_ids), "至少需要一篇主文 PDF，不能只有补充或重复材料。")
     for pid, paper in records.items():
@@ -249,6 +342,11 @@ def check_plan(workdir):
             require(paper["source_sha256"] == records[parent]["source_sha256"], f"{pid} 重复材料必须与主文完全一致。")
     families = {pid: pid if pid in primary_ids else paper["related_to"]
                 for pid, paper in records.items()}
+    # Opting into layered review covers the associated source family as well.
+    # Pure legacy records retain their previous behavior when no review was recorded.
+    layered_families = {families[pid] for pid, paper in records.items()
+                        if "main_evidence_screened" in paper
+                        or any("review_level" in item for item in paper["evidence"])}
     experiments = {}
     for pid, paper in records.items():
         for experiment in paper.get("experiments", []):
@@ -294,6 +392,12 @@ def check_plan(workdir):
             require(isinstance(ref, str) and ref in evidence, f"{sid} 未知证据编号：{ref}")
             require(evidence[ref] in pids, f"{sid} 证据不属于该页声明的论文：{ref}")
             owner = evidence[ref]
+            item = evidence_records[ref]
+            if item["kind"] in {"figure", "table", "equation"}:
+                if (families[owner] in layered_families
+                        or "review_level" in item or "reviewed" in item):
+                    require(evidence_review_level(item) == "verified" and item.get("reviewed") is not False,
+                            f"{sid} 使用的图表或公式须完成详细核验（verified）：{ref}")
             used_sources.add(owner)
             if records[owner].get("source_role", "primary") != "primary":
                 require(records[owner]["related_to"] in pids, f"{sid} 补充或重复来源须同时声明所属主文。")
@@ -319,11 +423,10 @@ def check_plan(workdir):
     for pid, paper in records.items():
         if paper.get("source_role", "primary") != "primary":
             continue
-        coverage = paper.get("method_coverage")
-        if paper.get("analysis_type") not in {"method", "algorithm", "system"} and coverage is None:
+        # Method coverage is optional; any supplied record keeps the full contract.
+        if "method_coverage" not in paper:
             continue
-        if state.get("schema_version", 1) < 2 and coverage is None:
-            continue  # Existing finished jobs remain readable.
+        coverage = paper["method_coverage"]
         require(isinstance(coverage, list), f"{pid} 方法论文缺少关键步骤覆盖记录。")
         aspects = [item.get("aspect") for item in coverage]
         require(len(aspects) == 5 and set(aspects) == {"inputs", "objective", "update", "outputs", "stopping"},
@@ -350,8 +453,56 @@ def check_plan(workdir):
                 missing_refs = required_refs - covered
                 require(not missing_refs,
                         f"{pid} 方法覆盖 {aspect} 在页面 {', '.join(owners)} 合计缺少证据：{', '.join(sorted(missing_refs))}。")
+    if state.get("schema_version", 1) >= 4:
+        check_group_navigation(plan, paper_data)
     return {"status": "pass", "slide_count": len(slides), "paper_count": len(primary_ids), "source_count": len(papers),
             "warnings": warnings, "scope": "结构与来源关联检查，不证明科学结论正确"}
+
+
+def navigation_node():
+    """Use the configured runtime without embedding any machine-specific path."""
+    explicit = os.environ.get("RUNTIME_NODE")
+    if explicit:
+        path = Path(explicit)
+        require(path.is_absolute() and path.is_file(), "RUNTIME_NODE 必须指向已配置运行时的绝对 Node 路径。")
+        return str(path)
+    modules = os.environ.get("RUNTIME_NODE_MODULES")
+    if modules:
+        path = Path(modules).parent / "bin" / "node"
+        if path.is_absolute() and path.is_file():
+            return str(path)
+    executable = shutil.which("node")
+    require(executable is not None,
+            "组会导航检查需要 Node；请通过工作区依赖设置 RUNTIME_NODE 或 RUNTIME_NODE_MODULES。")
+    return executable
+
+
+def check_group_navigation(plan, papers):
+    """Share the renderer's structural rules instead of duplicating them in Python."""
+    navigation = plan.get("navigation")
+    require(isinstance(navigation, dict) and navigation.get("profile") == "group-meeting",
+            "新任务须设置 navigation.profile='group-meeting'，并按组会结构规划页面。")
+    script = (
+        "import fs from 'node:fs'; import {pathToFileURL} from 'node:url'; "
+        "const {resolveNavigation}=await import(pathToFileURL(process.argv[1]).href); "
+        "const {plan,papers}=JSON.parse(fs.readFileSync(0,'utf8')); "
+        "try { console.log(JSON.stringify(resolveNavigation(plan,papers))); } "
+        "catch(error) { console.error(error.message); process.exitCode=1; }"
+    )
+    try:
+        checked = subprocess.run(
+            [navigation_node(), "--input-type=module", "-e", script, str(SKILL_ROOT / "scripts/navigation.mjs")],
+            input=json.dumps({"plan": plan, "papers": papers}, ensure_ascii=False),
+            text=True, encoding="utf-8", capture_output=True, timeout=30, check=False)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise ContractError(f"组会导航检查未能完成：{exc}") from exc
+    require(checked.returncode == 0, f"组会导航结构不合格：{checked.stderr.strip() or checked.stdout.strip()}")
+    try:
+        resolved = json.loads(checked.stdout)
+    except (TypeError, json.JSONDecodeError) as exc:
+        raise ContractError("组会导航检查未返回有效 JSON。") from exc
+    require(isinstance(resolved, dict) and resolved.get("enabled") is True, "组会导航必须启用。")
+    return resolved
 
 
 def condition_references(value):
@@ -442,6 +593,10 @@ def finalize(workdir, pptx):
     requires_theme = state.get("schema_version", 1) >= 3 or any(
         state.get(key) is not None for key in ("theme_id", "theme_user_answer"))
     theme = get_theme(root) if requires_theme else None
+    if state.get("schema_version", 1) >= 4:
+        # Validate the user's metadata, but never compare generation date with
+        # delivery date: reviewing a deck may legitimately cross midnight.
+        get_report(root)
     check_plan(root)
     check_pptx(root, pptx)
     review = load_json(root / "_work/review.json")
@@ -480,16 +635,23 @@ def finalize(workdir, pptx):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("init", "confirm-pages", "confirm-theme", "get-theme", "check-plan", "check-pptx", "finalize", "stage", "stats"):
+    for name in ("init", "confirm-pages", "confirm-theme", "get-theme", "confirm-presenter", "get-report",
+                 "check-plan", "check-pptx", "finalize", "stage", "stats"):
         command = sub.add_parser(name)
         command.add_argument("--workdir", required=True, type=Path)
         if name == "init":
             command.add_argument("--pdf", required=True, action="append", type=Path)
+            command.add_argument("--timezone", help="IANA time zone; omit to use the local generation date")
         elif name == "confirm-pages":
             command.add_argument("--pages", required=True, type=int)
             command.add_argument("--user-answer", required=True)
         elif name == "confirm-theme":
             command.add_argument("--theme", choices=tuple(THEME_LABELS), required=True)
+            command.add_argument("--user-answer", required=True)
+        elif name == "confirm-presenter":
+            choice = command.add_mutually_exclusive_group(required=True)
+            choice.add_argument("--name")
+            choice.add_argument("--omit", action="store_true")
             command.add_argument("--user-answer", required=True)
         elif name in {"check-pptx", "finalize"}:
             command.add_argument("--pptx", required=True, type=Path)
@@ -499,13 +661,17 @@ def main():
     args = parser.parse_args()
     try:
         if args.command == "init":
-            result = initialize(args.workdir, args.pdf)
+            result = initialize(args.workdir, args.pdf, args.timezone)
         elif args.command == "confirm-pages":
             result = confirm_pages(args.workdir, args.pages, args.user_answer)
         elif args.command == "confirm-theme":
             result = confirm_theme(args.workdir, args.theme, args.user_answer)
         elif args.command == "get-theme":
             result = get_theme(args.workdir)
+        elif args.command == "confirm-presenter":
+            result = confirm_presenter(args.workdir, args.name, args.user_answer, args.omit)
+        elif args.command == "get-report":
+            result = get_report(args.workdir)
         elif args.command == "check-plan":
             result = check_plan(args.workdir)
         elif args.command == "check-pptx":

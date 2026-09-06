@@ -1,4 +1,4 @@
 interface:
   display_name: "组会文献汇报"
-  short_description: "解析单篇或多篇论文，结合关键证据与原文图表制作中文组会汇报PPT"
-  default_prompt: "使用 $journal-club-ppt，把我上传的论文制作成中文组会文献汇报 PPT。先同时询问总页数和蓝、青、红、紫四种主题色并等待我的回答；已回答的项不重复询问。"
+  short_description: "按跨学科小节框架分篇汇报论文，使用固定封面与章节过渡制作可编辑中文组会PPT"
+  default_prompt: "使用 $journal-club-ppt，把我上传的论文制作成中文组会文献汇报 PPT；按总页数、主题色、汇报人顺序，每次只问一个尚缺信息，等我回答后再问下一项。"

@@ -1,5 +1,7 @@
 /** Resolve explicit section navigation without inferring it from slide titles. */
 
+import { validateReportStructure } from './report_structure.mjs';
+
 const NAVIGATION_PAGES = new Set(['cover', 'agenda', 'closing']);
 const MODES = new Set(['single', 'by-paper', 'by-theme']);
 const own = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
@@ -88,7 +90,8 @@ export function resolveNavigation(plan, papers) {
       requireThat(!sections.has(sectionId), `duplicate section_id: ${sectionId}`);
       const label = identifier(section.label, `${sectionId}.label`);
       requireThat(!hasNumberPrefix(label), `${sectionId}.label must not include a handwritten number prefix`);
-      const number = navigation.mode === 'by-paper' ? `${groupIndex + 1}.${sectionIndex + 1}` : `${sectionIndex + 1}`;
+      const numberedByPaper = navigation.mode === 'by-paper' || (navigation.profile === 'group-meeting' && navigation.mode === 'single');
+      const number = numberedByPaper ? `${groupIndex + 1}.${sectionIndex + 1}` : `${sectionIndex + 1}`;
       sections.set(sectionId, {
         ordinal: sections.size,
         heading: { header: `${number} ${label}`, section_id: sectionId, section_label: label,
@@ -130,8 +133,8 @@ export function resolveNavigation(plan, papers) {
     const slideId = identifier(slide.slide_id, 'slide_id');
     requireThat(!slideIds.has(slideId), `duplicate slide_id: ${slideId}`);
     slideIds.add(slideId);
-    if (NAVIGATION_PAGES.has(slide.render?.type)) {
-      requireThat(!own(slide, 'section_id'), `${slideId}: cover, agenda and closing pages must not carry section_id`);
+    if (NAVIGATION_PAGES.has(slide.render?.type) || (navigation.profile === 'group-meeting' && navigation.mode !== 'by-theme' && slide.render?.type === 'section-divider')) {
+      requireThat(!own(slide, 'section_id'), `${slideId}: navigation pages must not carry section_id`);
       continue;
     }
     const sectionId = identifier(slide.section_id, `${slideId}.section_id`);
@@ -152,5 +155,6 @@ export function resolveNavigation(plan, papers) {
   for (const [sectionId, section] of sections) {
     requireThat(section.uses > 0, `unused section has no body page: ${sectionId}`);
   }
-  return { enabled: true, headings };
+  const reportStructure = validateReportStructure(plan, papers);
+  return { enabled: true, headings, ...(reportStructure ? { report_structure: reportStructure } : {}) };
 }

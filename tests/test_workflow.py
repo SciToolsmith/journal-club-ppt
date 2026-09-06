@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 from zipfile import ZipFile
 from unittest import mock
@@ -53,10 +54,15 @@ class WorkflowTests(unittest.TestCase):
         self.work = self.root / "job"
         workflow.initialize(self.work, [self.pdf])
 
-    def ready(self, confirm_color=True, pages=1):
+    def ready(self, confirm_color=True, pages=1, schema_version=3):
         workflow.confirm_pages(self.work, pages, "一页" if pages == 1 else f"{pages}页")
         if confirm_color:
             workflow.confirm_theme(self.work, "blue", "蓝色")
+        # The scientific-contract fixtures intentionally retain their original
+        # schema, so schema-4 navigation has its own complete deck fixtures.
+        state = workflow.load_json(self.work / "_work/run.json")
+        state["schema_version"] = schema_version
+        workflow.save_json(self.work / "_work/run.json", state)
         self.papers = {"papers": [{"paper_id": "P1", "pdf_page_count": 1,
             "source_sha256": workflow.sha256(self.pdf), "main_evidence_reviewed": True,
             "main_evidence_ids": [],
@@ -231,6 +237,147 @@ class WorkflowTests(unittest.TestCase):
         with self.assertRaisesRegex(workflow.ContractError, "尚未提取"):
             workflow.check_plan(self.work)
 
+    def test_layered_unused_figure_needs_screening_and_complete_inventory_record(self):
+        self.ready()
+        paper = self.papers["papers"][0]
+        paper.pop("main_evidence_reviewed")
+        paper["main_evidence_screened"] = True
+        unused = {"evidence_id": "P1:Fig2", "kind": "figure", "pdf_page": 1,
+                  "locator": "Figure 2", "review_level": "screened"}
+        paper["evidence"].append(unused)
+        paper["main_evidence_ids"] = ["P1:Fig2"]
+        self.save()
+        self.assertEqual(workflow.check_plan(self.work)["status"], "pass")
+        unused.pop("review_level")
+        self.save()
+        with self.assertRaisesRegex(workflow.ContractError, "实际审阅或筛查"):
+            workflow.check_plan(self.work)
+        unused["review_level"] = "screened"
+        paper["main_evidence_screened"] = False
+        self.save()
+        with self.assertRaisesRegex(workflow.ContractError, "尚未记录主图表"):
+            workflow.check_plan(self.work)
+        paper["main_evidence_screened"] = True
+        for inventory in (None, ["P1:Fig2", "P1:Fig2"], ["P1:Fig99"]):
+            with self.subTest(inventory=inventory):
+                paper["main_evidence_ids"] = inventory
+                self.save()
+                with self.assertRaises(workflow.ContractError):
+                    workflow.check_plan(self.work)
+
+    def test_used_visual_evidence_requires_verified_in_layered_records(self):
+        self.ready()
+        paper = self.papers["papers"][0]
+        paper.pop("main_evidence_reviewed")
+        paper["main_evidence_screened"] = True
+        item = paper["evidence"][0]
+        slide = self.plan["slides"][0]
+        for kind in ("figure", "table", "equation"):
+            item["kind"] = kind
+            paper["main_evidence_ids"] = ["P1:Fig1"] if kind != "equation" else []
+            for source_field in ("evidence_ids", "claims"):
+                with self.subTest(kind=kind, source_field=source_field):
+                    slide["evidence_ids"] = ["P1:Fig1"] if source_field == "evidence_ids" else []
+                    slide["claims"] = ([{"text": "结果", "provenance": "paper", "sources": ["P1:Fig1"]}]
+                                       if source_field == "claims" else [])
+                    item["review_level"] = "screened"
+                    self.save()
+                    with self.assertRaisesRegex(workflow.ContractError, "详细核验"):
+                        workflow.check_plan(self.work)
+                    item["review_level"] = "verified"
+                    self.save()
+                    self.assertEqual(workflow.check_plan(self.work)["status"], "pass")
+        item.pop("review_level")
+        self.save()
+        with self.assertRaisesRegex(workflow.ContractError, "详细核验"):
+            workflow.check_plan(self.work)
+
+    def test_review_levels_reject_invalid_values_and_conflicting_legacy_flag(self):
+        self.ready()
+        item = self.papers["papers"][0]["evidence"][0]
+        for level in (None, "read", True, [], {}):
+            with self.subTest(level=level):
+                item["review_level"] = level
+                self.save()
+                with self.assertRaisesRegex(workflow.ContractError, "review_level 必须"):
+                    workflow.check_plan(self.work)
+        for level, reviewed in (("screened", True), ("verified", False)):
+            with self.subTest(level=level, reviewed=reviewed):
+                item.update(review_level=level, reviewed=reviewed)
+                self.save()
+                with self.assertRaisesRegex(workflow.ContractError, "矛盾"):
+                    workflow.check_plan(self.work)
+
+    def test_legacy_main_reviewed_flag_keeps_full_verification_meaning(self):
+        self.ready()
+        paper = self.papers["papers"][0]
+        paper["main_evidence_screened"] = True
+        paper["main_evidence_ids"] = ["P1:Fig2"]
+        item = {"evidence_id": "P1:Fig2", "kind": "figure", "pdf_page": 1,
+                "locator": "Figure 2", "review_level": "screened"}
+        paper["evidence"].append(item)
+        self.save()
+        with self.assertRaisesRegex(workflow.ContractError, "main_evidence_reviewed=true"):
+            workflow.check_plan(self.work)
+        item["review_level"] = "verified"
+        self.save()
+        self.assertEqual(workflow.check_plan(self.work)["status"], "pass")
+
+    def test_legacy_review_records_remain_readable_but_explicit_unverified_use_fails(self):
+        self.ready()
+        paper = self.papers["papers"][0]
+        item = paper["evidence"][0]
+        item["kind"] = "equation"
+        self.save()
+        self.assertEqual(workflow.check_plan(self.work)["status"], "pass")
+        for fields in ({"reviewed": False}, {"review_level": "screened"}):
+            with self.subTest(fields=fields):
+                item.pop("review_level", None)
+                item.pop("reviewed", None)
+                item.update(fields)
+                self.save()
+                with self.assertRaisesRegex(workflow.ContractError, "详细核验"):
+                    workflow.check_plan(self.work)
+        item.pop("review_level")
+        item.update(kind="figure", reviewed=True)
+        paper["main_evidence_ids"] = ["P1:Fig1"]
+        self.save()
+        self.assertEqual(workflow.check_plan(self.work)["status"], "pass")
+
+    def test_layered_primary_requires_verified_associated_visual_evidence(self):
+        self.ready()
+        self.add_source("supplement")
+        self.papers["papers"][0]["main_evidence_screened"] = True
+        item = self.papers["papers"][1]["evidence"][0]
+        item["kind"] = "figure"
+        slide = self.plan["slides"][0]
+        slide["paper_ids"].append("P2")
+        slide["evidence_ids"].append("P2:Text1")
+        self.save()
+        with self.assertRaisesRegex(workflow.ContractError, "详细核验"):
+            workflow.check_plan(self.work)
+        item["reviewed"] = True
+        self.save()
+        self.assertEqual(workflow.check_plan(self.work)["status"], "pass")
+
+    def test_verified_equation_screenshot_keeps_equation_kind(self):
+        self.ready()
+        paper = self.papers["papers"][0]
+        paper["main_evidence_screened"] = True
+        item = paper["evidence"][0]
+        asset = self.work / "_work/equation.png"
+        asset.write_bytes(b"Synthetic asset: image decoding is outside the plan contract")
+        item.update(kind="equation", review_level="verified", asset_path="_work/equation.png")
+        self.plan["slides"][0]["render"] = {"type": "single-figure", "figures": [{"evidence_id": "P1:Fig1"}]}
+        self.save()
+        self.assertEqual(workflow.check_plan(self.work)["status"], "pass")
+        self.assertEqual(workflow.load_json(self.work / "_work/papers.json")["papers"][0]["evidence"][0]["kind"],
+                         "equation")
+        item["review_level"] = "screened"
+        self.save()
+        with self.assertRaisesRegex(workflow.ContractError, "详细核验"):
+            workflow.check_plan(self.work)
+
     def test_rendered_image_cannot_hide_undeclared_evidence(self):
         self.ready()
         self.plan["slides"][0]["render"] = {"type": "single-figure", "figures": [{"evidence_id": "P1:Fig99"}]}
@@ -256,13 +403,39 @@ class WorkflowTests(unittest.TestCase):
         with self.assertRaisesRegex(workflow.ContractError, "须声明其证据"):
             workflow.check_plan(self.work)
 
-    def test_method_update_cannot_silently_disappear(self):
+    def test_method_coverage_can_be_omitted_regardless_of_analysis_type(self):
+        self.meeting_ready()
+        paper = self.papers["papers"][0]
+        for analysis_type in (None, "method", "algorithm", "system", "discovery"):
+            with self.subTest(analysis_type=analysis_type):
+                if analysis_type is None:
+                    paper.pop("analysis_type", None)
+                else:
+                    paper["analysis_type"] = analysis_type
+                self.save()
+                self.assertEqual(workflow.check_plan(self.work)["status"], "pass")
+
+    def test_explicit_method_coverage_still_requires_complete_unique_aspects(self):
+        self.ready()
+        paper = self.papers["papers"][0]
+        # Supplying the optional record opts into validation even for other types.
+        paper["analysis_type"] = "discovery"
+        complete = [{"aspect": aspect, "evidence_ids": ["P1:Fig1"], "slide_ids": ["S01"]}
+                    for aspect in ("inputs", "objective", "update", "outputs", "stopping")]
+        for coverage in (None, {}, [], complete[:-1], complete[:-1] + [complete[0]]):
+            with self.subTest(coverage=coverage):
+                paper["method_coverage"] = coverage
+                self.save()
+                with self.assertRaises(workflow.ContractError):
+                    workflow.check_plan(self.work)
+        paper["method_coverage"] = complete
+        self.save()
+        self.assertEqual(workflow.check_plan(self.work)["status"], "pass")
+
+    def test_explicit_method_update_requires_page_or_omission_reason(self):
         self.ready()
         paper = self.papers["papers"][0]
         paper["analysis_type"] = "method"
-        self.save()
-        with self.assertRaisesRegex(workflow.ContractError, "关键步骤覆盖"):
-            workflow.check_plan(self.work)
         paper["method_coverage"] = [{"aspect": aspect, "evidence_ids": ["P1:Fig1"], "slide_ids": ["S01"]}
                                     for aspect in ("inputs", "objective", "update", "outputs", "stopping")]
         self.save()
@@ -360,15 +533,20 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(workflow.load_json(self.work / "_work/run.json")["target_slide_count"], 1)
         self.assertFalse((self.work / "_work/review.json").exists())
 
-    def test_new_task_asks_pages_and_four_themes_without_defaults(self):
+    def test_new_task_asks_only_pages_and_keeps_other_choices_unset(self):
         state = workflow.load_json(self.work / "_work/run.json")
-        self.assertEqual(state["schema_version"], 3)
+        self.assertEqual(state["schema_version"], 4)
         self.assertIsNone(state["theme_id"])
         self.assertIsNone(state["theme_user_answer"])
+        self.assertIsNone(state["presenter_name"])
+        self.assertIsNone(state["presenter_user_answer"])
+        self.assertFalse(state["presenter_omitted"])
+        self.assertIsNone(state["report_timezone"])
         result = workflow.initialize(self.root / "other", [self.pdf])
         self.assertIn("一共多少页", result["question"])
-        self.assertIn("主题色", result["theme_question"])
-        self.assertEqual([item["theme_id"] for item in result["theme_options"]], ["blue", "teal", "red", "purple"])
+        self.assertEqual(set(result), {"status", "question"})
+        self.assertIn("主题色", state["theme_question"])
+        self.assertIn("汇报人", state["presenter_question"])
         with self.assertRaisesRegex(workflow.ContractError, "等待用户明确选择"):
             workflow.get_theme(self.work)
 
@@ -444,8 +622,9 @@ class WorkflowTests(unittest.TestCase):
         review = {"pptx_sha256": workflow.sha256(pptx),
             "papers_sha256": workflow.sha256(self.work / "_work/papers.json"),
             "deck_plan_sha256": workflow.sha256(self.work / "_work/deck-plan.json"),
-            "slides": [{"slide_id": "S01", "content_checked": True,
-                        "layout_checked": True, "editability_checked": True}], "unresolved_errors": []}
+            "slides": [{"slide_id": slide["slide_id"], "content_checked": True,
+                        "layout_checked": True, "editability_checked": True}
+                       for slide in self.plan["slides"]], "unresolved_errors": []}
         if include_theme:
             theme = workflow.get_theme(self.work)
             review.update(theme_id=theme["theme_id"], palette_sha256=theme["palette_sha256"])
@@ -538,6 +717,178 @@ class WorkflowTests(unittest.TestCase):
             rejected = subprocess.run(cli + ["confirm-theme", "--workdir", str(self.work)] + options,
                                       text=True, capture_output=True)
             self.assertNotEqual(rejected.returncode, 0)
+
+    def meeting_ready(self):
+        self.ready(pages=4, schema_version=4)
+        self.plan["navigation"] = {"profile": "group-meeting", "mode": "single", "groups": [{
+            "group_id": "g1", "label": "测试论文", "paper_ids": ["P1"], "sections": [
+                {"section_id": "p1-info", "role": "paper_info", "label": "文献基本信息"},
+                {"section_id": "p1-findings", "role": "findings", "label": "主要结果与分析"}]}]}
+        body = dict(self.plan["slides"][0], slide_id="S03", section_id="p1-findings", render={"type": "text"})
+        self.plan["slides"] = [
+            {"slide_id": "S01", "title": "组会汇报", "layout_id": "cover", "paper_ids": [],
+             "evidence_ids": [], "claims": [], "render": {"type": "cover"}},
+            {"slide_id": "S02", "title": "测试论文概况", "layout_id": "paper-info", "section_id": "p1-info",
+             "paper_ids": ["P1"], "evidence_ids": [], "claims": [], "render": {"type": "paper-info"}},
+            body,
+            {"slide_id": "S04", "title": "汇报完毕", "layout_id": "cover", "paper_ids": [],
+             "evidence_ids": [], "claims": [], "render": {"type": "closing"}},
+        ]
+        self.save()
+
+    def test_presenter_before_pages_records_existing_answer_without_unlocking_analysis(self):
+        result = workflow.confirm_presenter(self.work, name=" 王小明 ", user_answer="汇报人是王小明")
+        self.assertEqual(result["status"], "awaiting_page_count")
+        self.assertEqual(result["presenter_name"], "王小明")
+        self.assertEqual(workflow.get_report(self.work)["presenter_name"], "王小明")
+        with self.assertRaisesRegex(workflow.ContractError, "等待用户回答"):
+            workflow.confirmed_state(self.work)
+        workflow.confirm_pages(self.work, 16, "16")
+        self.assertEqual(workflow.get_report(self.work)["presenter_name"], "王小明")
+        state = workflow.load_json(self.work / "_work/run.json")
+        self.assertEqual(state["presenter_user_answer"], "汇报人是王小明")
+
+    def test_presenter_requires_real_answer_and_explicit_omission(self):
+        before = workflow.sha256(self.work / "_work/run.json")
+        invalid = [dict(name="", user_answer=""), dict(name="王小明", user_answer=" "),
+                   dict(name="XXX", user_answer="XXX"), dict(omit=True, user_answer=""),
+                   dict(name="王小明", omit=True, user_answer="不显示"), dict(user_answer=""),
+                   dict(name="王小明", omit=1, user_answer="王小明")]
+        for options in invalid:
+            with self.subTest(options=options), self.assertRaises(workflow.ContractError):
+                workflow.confirm_presenter(self.work, **options)
+        self.assertEqual(before, workflow.sha256(self.work / "_work/run.json"))
+        with self.assertRaisesRegex(workflow.ContractError, "等待用户真实回答"):
+            workflow.get_report(self.work)
+        result = workflow.confirm_presenter(self.work, omit=True, user_answer="不显示汇报人")
+        self.assertTrue(result["presenter_omitted"])
+        self.assertIsNone(result["presenter_name"])
+        self.assertTrue(workflow.get_report(self.work)["presenter_omitted"])
+        state = workflow.load_json(self.work / "_work/run.json")
+        self.assertEqual(state["presenter_user_answer"], "不显示汇报人")
+        self.assertEqual(state["schema_version"], 4)
+
+    def test_malformed_presenter_record_is_not_treated_as_omission(self):
+        workflow.confirm_presenter(self.work, omit=True, user_answer="不显示")
+        state = workflow.load_json(self.work / "_work/run.json")
+        for update in ({"presenter_name": "王小明"}, {"presenter_omitted": "true"},
+                       {"presenter_user_answer": None}, {"presenter_omitted": False}):
+            with self.subTest(update=update):
+                workflow.save_json(self.work / "_work/run.json", dict(state, **update))
+                with self.assertRaises(workflow.ContractError):
+                    workflow.get_report(self.work)
+
+    def test_generation_date_uses_configured_timezone_and_refreshes_per_call(self):
+        work = self.root / "dated"
+        workflow.initialize(work, [self.pdf], "Asia/Shanghai")
+        workflow.confirm_presenter(work, "王小明", "王小明")
+        instant = datetime(2026, 9, 6, 20, 0, tzinfo=timezone.utc)
+        with mock.patch.object(workflow, "datetime") as clock:
+            clock.now.side_effect = lambda tz=None: instant.astimezone(tz)
+            self.assertEqual(workflow.get_report(work)["report_date"], "2026.09.07")
+            state = workflow.load_json(work / "_work/run.json")
+            state["report_timezone"] = "America/New_York"
+            workflow.save_json(work / "_work/run.json", state)
+            self.assertEqual(workflow.get_report(work)["report_date"], "2026.09.06")
+            instant = datetime(2026, 9, 7, 20, 0, tzinfo=timezone.utc)
+            self.assertEqual(workflow.get_report(work)["report_date"], "2026.09.07")
+        self.assertNotIn("report_date", workflow.load_json(work / "_work/run.json"))
+
+    def test_default_date_uses_machine_local_timezone_and_bad_zone_is_rejected(self):
+        workflow.confirm_presenter(self.work, omit=True, user_answer="不显示")
+        local = datetime(2026, 9, 7, 1, 0, tzinfo=workflow.ZoneInfo("Asia/Shanghai"))
+        with mock.patch.object(workflow, "datetime") as clock:
+            clock.now.return_value.astimezone.return_value = local
+            result = workflow.get_report(self.work)
+            self.assertEqual(result["report_date"], "2026.09.07")
+            self.assertIsNone(result["report_timezone"])
+            clock.now.assert_called_once_with()
+        for name in ("Mars/Olympus", " Asia/Shanghai", "", 8):
+            target = self.root / "bad-zone"
+            with self.subTest(name=name), self.assertRaises(workflow.ContractError):
+                workflow.initialize(target, [self.pdf], name)
+            self.assertFalse((target / "_work/run.json").exists())
+
+    def test_legacy_schemas_can_resolve_report_without_new_question(self):
+        state = workflow.load_json(self.work / "_work/run.json")
+        for key in ("presenter_name", "presenter_user_answer", "presenter_omitted", "report_timezone"):
+            state.pop(key, None)
+        for version in (1, 2, 3):
+            with self.subTest(schema=version):
+                state["schema_version"] = version
+                workflow.save_json(self.work / "_work/run.json", state)
+                result = workflow.get_report(self.work)
+                self.assertTrue(result["legacy_default"])
+                self.assertTrue(result["presenter_omitted"])
+                self.assertIsNone(result["presenter_name"])
+
+    def test_new_plan_allows_analysis_before_presenter_but_enforces_navigation(self):
+        self.meeting_ready()
+        self.assertEqual(workflow.check_plan(self.work)["status"], "pass")
+        with self.assertRaisesRegex(workflow.ContractError, "等待用户真实回答"):
+            workflow.get_report(self.work)
+        with self.assertRaisesRegex(workflow.ContractError, "等待用户真实回答"):
+            workflow.finalize(self.work, self.work / "_work/not-built.pptx")
+        self.plan.pop("navigation")
+        self.save()
+        with self.assertRaisesRegex(workflow.ContractError, "navigation.profile"):
+            workflow.check_plan(self.work)
+
+    def test_new_plan_uses_shared_javascript_structure_validation(self):
+        self.meeting_ready()
+        self.plan["slides"][1]["render"]["type"] = "text"
+        self.save()
+        with self.assertRaisesRegex(workflow.ContractError, "组会导航结构不合格"):
+            workflow.check_plan(self.work)
+
+    def test_metadata_confirmation_preserves_plan_and_cannot_mutate_delivered_job(self):
+        self.meeting_ready()
+        before = {name: workflow.sha256(self.work / "_work" / name) for name in ("papers.json", "deck-plan.json")}
+        workflow.confirm_presenter(self.work, name="王小明", user_answer="王小明")
+        self.assertEqual(before, {name: workflow.sha256(self.work / "_work" / name) for name in before})
+        state = workflow.load_json(self.work / "_work/run.json")
+        self.assertEqual(state["target_slide_count"], 4)
+        state["status"] = "delivered"
+        workflow.save_json(self.work / "_work/run.json", state)
+        with self.assertRaisesRegex(workflow.ContractError, "任务已交付"):
+            workflow.confirm_presenter(self.work, omit=True, user_answer="不显示")
+
+    def test_cross_midnight_delivery_keeps_generation_date_and_accepts_explicit_omission(self):
+        self.meeting_ready()
+        workflow.confirm_presenter(self.work, omit=True, user_answer="不显示")
+        pptx = self.work / "_work/new.pptx"
+        package(pptx, 4)
+        review = self.current_review(pptx)
+        review["report"] = dict(workflow.get_report(self.work), report_date="2026.09.06")
+        workflow.save_json(self.work / "_work/review.json", review)
+        with mock.patch.object(workflow, "datetime") as clock:
+            clock.now.return_value.astimezone.return_value = datetime(2026, 9, 7, tzinfo=timezone.utc)
+            self.assertEqual(workflow.finalize(self.work, pptx)["status"], "delivered")
+        saved = workflow.load_json(self.work / "_work/review.json")
+        self.assertEqual(saved["report"]["report_date"], "2026.09.06")
+
+    def test_presenter_and_timezone_cli(self):
+        cli = [sys.executable, str(SKILL / "scripts/workflow.py")]
+        work = self.root / "cli-job"
+        initialized = subprocess.run(cli + ["init", "--workdir", str(work), "--pdf", str(self.pdf),
+            "--timezone", "Asia/Shanghai"], text=True, capture_output=True)
+        self.assertEqual(initialized.returncode, 0, initialized.stderr)
+        confirmed = subprocess.run(cli + ["confirm-presenter", "--workdir", str(work),
+            "--name", "王小明", "--user-answer", "我的名字是王小明"], text=True, capture_output=True)
+        self.assertEqual(confirmed.returncode, 0, confirmed.stderr)
+        resolved = subprocess.run(cli + ["get-report", "--workdir", str(work)], text=True, capture_output=True)
+        self.assertEqual(resolved.returncode, 0, resolved.stderr)
+        self.assertEqual(json.loads(resolved.stdout)["presenter_name"], "王小明")
+        self.assertEqual(json.loads(resolved.stdout)["report_timezone"], "Asia/Shanghai")
+        for options in (["--name", "王小明"], ["--omit"], ["--user-answer", "不显示"],
+                        ["--name", "王小明", "--omit", "--user-answer", "不显示"]):
+            rejected = subprocess.run(cli + ["confirm-presenter", "--workdir", str(work)] + options,
+                                      text=True, capture_output=True)
+            self.assertNotEqual(rejected.returncode, 0)
+        omitted = subprocess.run(cli + ["confirm-presenter", "--workdir", str(work), "--omit",
+            "--user-answer", "不显示"], text=True, capture_output=True)
+        self.assertEqual(omitted.returncode, 0, omitted.stderr)
+        self.assertTrue(json.loads(omitted.stdout)["presenter_omitted"])
 
 
 if __name__ == "__main__":

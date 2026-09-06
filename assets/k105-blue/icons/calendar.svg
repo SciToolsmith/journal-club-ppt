@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" fill="none" stroke="#32497B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+<!-- Independently drawn from simple geometry for Journal Club PPT. SPDX-License-Identifier: MIT -->
+<rect x="3" y="5" width="22" height="20" rx="2"/>
+<path d="M8 3 V8 M20 3 V8 M3 11 H25"/>
+<path d="M8 16 H9 M14 16 H15 M20 16 H21 M8 21 H9 M14 21 H15 M20 21 H21"/>
+</svg>

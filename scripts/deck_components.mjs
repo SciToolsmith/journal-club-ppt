@@ -1,5 +1,6 @@
 // Reusable K105 geometry. Text is always native; evidence images remain unchanged.
 import { getTheme } from './themes.mjs';
+import { readFileSync } from 'node:fs';
 export const STYLE = Object.freeze({
   width: 1280, height: 720,
 });
@@ -8,6 +9,7 @@ export const COVER_MARKS = Object.freeze([
   [36.365, 48.784, 30.604, 6.396], [1181, 686.367, 62.635, 6.396],
   [1198.196, 675.761, 45.439, 6.396], [1213.030, 665.156, 30.604, 6.396],
 ]);
+export const REPORT_TITLE = '组会汇报';
 export const CLOSING_TEXT = '汇报完毕，敬请老师同学批评指正！';
 
 // This catches obviously overfull copy without shrinking, truncating or rewriting it.
@@ -41,22 +43,89 @@ export function paragraphGeometry(lines, box, size = 27, gap = 24, distribution 
     sparse:lines.length===0 || (spare>120 && naturalHeight/height<0.55)};
 }
 
-export function explanationGeometry(sections, box) {
+export function explanationGeometry(sections, box, composition = 'prose') {
   if (!Array.isArray(sections) || sections.length<2 || sections.length>4)
     throw new Error('explanation: use 2–4 substantive titled sections; otherwise choose another composition');
-  const [x,y,width,height]=box, rowHeight=height/sections.length, labelWidth=230, gutter=40;
-  return sections.map((section,i)=>{
+  if (!['prose','focus-left','focus-top','sequence'].includes(composition))
+    throw new Error('explanation: unknown composition');
+  if (composition.startsWith('focus-') && sections.length>3)
+    throw new Error('explanation: focus compositions need one main point and 1–2 supporting sections');
+  sections.forEach(section=>{
     if (!section || typeof section.title!=='string' || !section.title.trim() || typeof section.body!=='string' || !section.body.trim())
       throw new Error('explanation: each section needs a nonempty title and body');
     if(Object.keys(section).some(key=>!['title','body'].includes(key)))throw new Error('explanation: unsupported section field');
-    const bodyWidth=width-labelWidth-gutter;
-    const th=estimatedLines(section.title,labelWidth,26)*26*1.35;
-    const bh=estimatedLines(section.body,bodyWidth,26)*26*1.35;
-    if(Math.max(th,bh)>rowHeight-24)throw new Error('explanation: text exceeds a row; simplify or use a custom layout, never shrink');
-    return {title:[x,y+i*rowHeight+(rowHeight-th)/2,labelWidth,th+1],
-      body:[x+labelWidth+gutter,y+i*rowHeight+(rowHeight-bh)/2,bodyWidth,bh+1],
-      divider:i?y+i*rowHeight:null};
   });
+  const [bx,by,bw,bh]=box, x=bx+18, y=by+18, width=bw-36, height=bh-36;
+  const measure=(i,w,bodySize=26,titleSize=26)=>({
+    th:estimatedLines(sections[i].title,w,titleSize)*titleSize*1.35+1,
+    bh:estimatedLines(sections[i].body,w,bodySize)*bodySize*1.35+1,
+    titleSize,bodySize,
+  });
+  const fail=(i,required,available)=>{
+      const titleChars=Array.from(sections[i].title.trim().replace(/\s+/g,' '));
+      const shortTitle=titleChars.slice(0,24).join('')+(titleChars.length>24?'…':'');
+      throw new Error(`explanation ${composition} section ${i+1} (${JSON.stringify(shortTitle)}): text requires ${required.toFixed(1)} px, available ${available.toFixed(1)} px; simplify or use a custom layout, never shrink`);
+  };
+  const place=(i,left,top,w,m,emphasis=false)=>({
+    title:[left,top,w,m.th],body:[left,top+m.th+14,w,m.bh],
+    titleSize:m.titleSize,bodySize:m.bodySize,emphasis,
+  });
+  const groupHeight=m=>m.th+14+m.bh;
+  if(composition==='prose') {
+    const measures=sections.map((_,i)=>measure(i,width)), gap=30;
+    const total=measures.reduce((n,m)=>n+groupHeight(m),0)+gap*(sections.length-1);
+    if(total>height)fail(measures.findIndex(m=>groupHeight(m)===Math.max(...measures.map(groupHeight))),total,height);
+    let top=y+Math.min(26,(height-total)/2);
+    return measures.map((m,i)=>{const item=place(i,x,top,width,m);top+=groupHeight(m)+gap;return item;});
+  }
+  if(composition==='sequence') {
+    const gap=52, w=(width-gap*(sections.length-1))/sections.length;
+    const measures=sections.map((_,i)=>measure(i,w,30,30));
+    const headingHeight=Math.max(...measures.map(m=>m.th));
+    const total=74+headingHeight+20+Math.max(...measures.map(m=>m.bh));
+    if(total>height)fail(measures.findIndex(m=>m.bh===Math.max(...measures.map(m=>m.bh))),total,height);
+    const top=y+Math.min(24,(height-total)/2);
+    return measures.map((m,i)=>({
+      title:[x+i*(w+gap),top+74,w,m.th],body:[x+i*(w+gap),top+74+headingHeight+20,w,m.bh],
+      titleSize:m.titleSize,bodySize:m.bodySize,emphasis:false,
+      number:[x+i*(w+gap),top,w,65],
+      connector:i<sections.length-1?[x+i*(w+gap)+w+10,top+28,gap-20]:null,
+    }));
+  }
+  if(composition==='focus-left') {
+    const leadWidth=width*0.43, rightX=x+leadWidth+80, rightWidth=width-leadWidth-80;
+    const lead=measure(0,leadWidth,34), supports=sections.slice(1).map((_,i)=>measure(i+1,rightWidth));
+    const total=supports.reduce((n,m)=>n+groupHeight(m),0)+42*(supports.length-1);
+    if(groupHeight(lead)>height)fail(0,groupHeight(lead),height);
+    if(total>height)fail(1+supports.findIndex(m=>groupHeight(m)===Math.max(...supports.map(groupHeight))),total,height);
+    const leadTop=y+Math.min(24,(height-groupHeight(lead))/2), result=[place(0,x,leadTop,leadWidth,lead,true)];
+    let top=y+Math.min(24,(height-total)/2);
+    supports.forEach((m,j)=>{result.push(place(j+1,rightX,top,rightWidth,m));top+=groupHeight(m)+42;});
+    return result;
+  }
+  const lead=measure(0,width,34), gap=72, supportWidth=(width-gap*(sections.length-2))/(sections.length-1);
+  const supports=sections.slice(1).map((_,i)=>measure(i+1,supportWidth));
+  const total=groupHeight(lead)+54+Math.max(...supports.map(groupHeight));
+  if(total>height)fail(groupHeight(lead)>Math.max(...supports.map(groupHeight))?0:1+supports.findIndex(m=>groupHeight(m)===Math.max(...supports.map(groupHeight))),total,height);
+  const top=y+Math.min(24,(height-total)/2);
+  return [place(0,x,top,width,lead,true),...supports.map((m,j)=>place(j+1,x+j*(supportWidth+gap),top+groupHeight(lead)+54,supportWidth,m))];
+}
+
+export function validateReportMetadata(report) {
+  if (!report || typeof report !== 'object' || Array.isArray(report)) throw new Error('group-meeting requires confirmed report metadata');
+  if (typeof report.presenter_omitted !== 'boolean') throw new Error('report.presenter_omitted must explicitly record the presenter choice');
+  if (report.presenter_omitted) {
+    if (report.presenter_name !== null && report.presenter_name !== '') throw new Error('An omitted presenter cannot retain a presenter_name');
+  } else if (typeof report.presenter_name !== 'string' || !report.presenter_name.trim()) throw new Error('group-meeting requires a confirmed presenter name or explicit omission');
+  const parts=/^(\d{4})\.(\d{2})\.(\d{2})$/.exec(report.report_date || '');
+  if (!parts) throw new Error('report.report_date must be a generated YYYY.MM.DD date');
+  const [year,month,day]=parts.slice(1).map(Number), date=new Date(Date.UTC(year,month-1,day));
+  if (date.getUTCFullYear()!==year || date.getUTCMonth()!==month-1 || date.getUTCDate()!==day) throw new Error('report.report_date is not a real calendar date');
+  if (report.report_timezone!==null) {
+    if (typeof report.report_timezone !== 'string' || !report.report_timezone.trim()) throw new Error('report.report_timezone must record local time as null or an IANA timezone');
+    try { new Intl.DateTimeFormat('en',{timeZone:report.report_timezone}); } catch { throw new Error('report.report_timezone must be an IANA timezone'); }
+  }
+  return {presenter_name:report.presenter_omitted?null:report.presenter_name.trim(),presenter_omitted:report.presenter_omitted,report_date:report.report_date,report_timezone:report.report_timezone};
 }
 
 export function createComponents(fontFamily, themeId = 'blue') {
@@ -108,18 +177,107 @@ export function createComponents(fontFamily, themeId = 'blue') {
     if (subtitle) text(slide, subtitle, 130, 387, 1020, 60, 30, { color: C.on_primary, align: 'center', label: 'cover subtitle' });
     if (body.length) text(slide, body.join('\n'), 130, 511, 1020, 137, 22, { align: 'center', label: 'cover body' });
   }
+  function reportSignature(slide, metadata) {
+    const report=validateReportMetadata(metadata);
+    const icon=(name,box)=>{
+      const svg=readFileSync(new URL(`../assets/k105-blue/icons/${name}.svg`,import.meta.url),'utf8').replaceAll('#32497B',C.primary);
+      slide.images.add({blob:new Uint8Array(Buffer.from(svg)),contentType:'image/svg+xml',
+        alt:name==='presenter'?'K105 学士帽图标':'K105 日历图标',fit:'contain',
+        position:{left:box[0],top:box[1],width:box[2],height:box[3]}});
+    };
+    if (!report.presenter_omitted) {
+      icon('presenter',[277.883,547.451,27.458,24.071]);
+      text(slide,`汇报人：${report.presenter_name}`,315,544,355,75,26.666667,{color:'#000000',label:'presenter name'});
+      icon('calendar',[697.54,547.008,25.923,26.759]);
+      text(slide,`汇报日期：${report.report_date}`,735,544,370,42,26.666667,{color:'#000000',label:'generation date'});
+    } else {
+      icon('calendar',[443,547.008,25.923,26.759]);
+      text(slide,`汇报日期：${report.report_date}`,480,544,370,42,26.666667,{color:'#000000',label:'generation date'});
+    }
+  }
+  function reportCover(slide, metadata) {
+    validateReportMetadata(metadata);
+    shape(slide,'rect',0,211.416483,1280,261.777743,C.primary);
+    for(const args of COVER_MARKS)shape(slide,'roundRect',...args,C.primary);
+    text(slide,REPORT_TITLE,180,279,920,127,88,{color:C.on_primary,bold:true,align:'center',label:'fixed report cover'});
+    reportSignature(slide,metadata);
+  }
+  function reportClosing(slide, metadata) {
+    closing(slide);
+    reportSignature(slide,metadata);
+  }
+  function sectionDivider(slide, section) {
+    if(!section || !Array.isArray(section.items) || section.items.length<2 || section.items.length>12)
+      throw new Error('section-divider: use 2–12 report groups with short display labels');
+    const active=section.items.filter(item=>item.active);
+    if(active.length!==1 || active[0].group_id!==section.group_id)throw new Error('section-divider: exactly the current group must be active');
+    shape(slide,'rect',16.900682,16.930814,1246.198636,686.138478,'none',C.primary,2);
+    shape(slide,'rect',503.184777,16.930814,273.630551,160.035696,C.primary);
+    text(slide,String(section.number).padStart(2,'0'),560,35.438530,160,96.937533,72,{color:C.on_primary,bold:true,align:'center'});
+    const part=['ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN','EIGHT','NINE','TEN','ELEVEN','TWELVE'][Number(section.number)-1];
+    text(slide,`PART ${part || section.number}`,535,119,210,39,26.666667,{color:C.muted_on_primary,bold:true,align:'center'});
+    const twoColumns=section.items.length>6, rowsPerColumn=twoColumns?Math.ceil(section.items.length/2):section.items.length;
+    const gap=rowsPerColumn<=4?100.540578:77, first=rowsPerColumn<=4?227.282625:212;
+    section.items.forEach((item,index)=>{
+      const y=first+gap*(twoColumns?index%rowsPerColumn:index), boxHeight=section.items.length<=4?66.846929:60;
+      const x=twoColumns?64+604*Math.floor(index/rowsPerColumn):75.835906, labelX=twoColumns?x+78:163.435906, labelWidth=twoColumns?470:1040;
+      shape(slide,'rect',x,y,twoColumns?62:70.183412,boxHeight,item.active?C.primary:'#BFC4D0');
+      text(slide,String(item.number).padStart(2,'0'),twoColumns?x+4:80,y+(boxHeight-49)/2,twoColumns?54:61,49,twoColumns?32:37.333333,{color:C.on_primary,bold:true,align:'center'});
+      const labelH=Math.max(42.0063,estimatedLines(item.label,labelWidth,26.666667)*26.666667*1.35+2);
+      if(labelH>gap-2)throw new Error('section-divider: display label is too long; use a short group label and retain the full paper title on paper-info');
+      text(slide,item.label,labelX,y+(boxHeight-labelH)/2,labelWidth,labelH,26.666667,{color:item.active?'#000000':'#B9BCC3',bold:true,label:'section-divider label'});
+    });
+  }
+  function paperInfo(slide, paper, {summary,keywords=[]} = {}) {
+    if(typeof paper?.title!=='string'||!paper.title.trim())throw new Error('paper-info requires the complete source paper title');
+    if(typeof summary!=='string'||!summary.trim())throw new Error('paper-info.summary must state the paper’s main research content');
+    if(!Array.isArray(keywords)||keywords.some(value=>typeof value!=='string'||!value.trim()))throw new Error('paper-info.keywords must be a list of nonempty text');
+    let top=103;
+    const titleH=estimatedLines(paper.title,1150,30)*30*1.35+3;
+    text(slide,paper.title,64,top,1150,titleH,30,{bold:true,label:'complete paper title'});top+=titleH+10;
+    if(paper.title_zh && paper.title_zh!==paper.title) {
+      const h=estimatedLines(paper.title_zh,1150,24)*24*1.35+2;
+      text(slide,paper.title_zh,64,top,1150,h,24,{color:C.gray,label:'Chinese paper title'});top+=h+12;
+    }
+    rule(slide,64,top+5,1150,C.rule);top+=29;
+    const available=641-top;
+    const rawAuthors=Array.isArray(paper.authors)?paper.authors:typeof paper.authors==='string'?[paper.authors]:[];
+    if(rawAuthors.some(value=>typeof value!=='string'))throw new Error('paper.authors must be names as text');
+    let authors=rawAuthors.join(', ');
+    if(rawAuthors.length>4)authors=`${rawAuthors.slice(0,3).join(', ')} 等（共 ${rawAuthors.length} 位）`;
+    if(estimatedLines(authors,537,24)>3 && rawAuthors.length>1)authors=`${rawAuthors[0]} 等（共 ${rawAuthors.length} 位）`;
+    const metadata=[authors&&`作者：${authors}`,(paper.venue || paper.journal || paper.conference || paper.publisher)&&`来源：${paper.venue || paper.journal || paper.conference || paper.publisher}`,
+      (paper.publication_date || paper.year) && `发表：${paper.publication_date || paper.year}`,
+      paper.doi&&`DOI：${paper.doi}`].filter(Boolean).map(String);
+    paragraphs(slide,metadata,[64,top,537,available],24,16);
+    const rightX=661,rightWidth=553;
+    label(slide,'主要研究内容',rightX,top,rightWidth,24);
+    const summaryH=estimatedLines(summary,rightWidth,26)*26*1.35+2;
+    text(slide,summary,rightX,top+42,rightWidth,summaryH,26,{label:'paper research summary'});
+    if(keywords.length) {
+      const keyY=top+42+summaryH+25, value=keywords.join('、'), h=estimatedLines(value,rightWidth,24)*24*1.35+2;
+      if(keyY+42+h>641)throw new Error('paper-info keywords exceed the available height; shorten display keywords or research summary without changing the full paper title');
+      label(slide,'关键词',rightX,keyY,rightWidth,24);
+      text(slide,value,rightX,keyY+42,rightWidth,h,24,{label:'paper keywords'});
+    } else if(top+42+summaryH>641)throw new Error('paper-info summary exceeds the available height');
+  }
   function paragraphs(slide, lines, box, size = 27, gap = 24, distribution = 'top') {
     const geometry=paragraphGeometry(lines,box,size,gap,distribution);
     lines.forEach((line,i)=>text(slide,line,...geometry.boxes[i],size,{label:`body ${i+1}`}));
     return geometry;
   }
-  function explanation(slide, sections, box) {
-    const [x,,width]=box;
-    const rows=explanationGeometry(sections,box);
+  function explanation(slide, sections, box, composition = 'prose') {
+    const rows=explanationGeometry(sections,box,composition);
     rows.forEach((row,i)=>{
-      if(row.divider!==null)rule(slide,x,row.divider,width,C.rule);
-      text(slide,sections[i].title,...row.title,26,{bold:true,color:C.primary,label:'explanation heading'});
-      text(slide,sections[i].body,...row.body,26,{label:'explanation body'});
+      if(row.number)text(slide,String(i+1).padStart(2,'0'),...row.number,46,{color:C.rule,bold:true,label:'sequence number'});
+      if(row.connector) {
+        const [x,y,w]=row.connector;
+        rule(slide,x,y,w-5,C.primary);
+        const arrow=shape(slide,'triangle',x+w-7,y-4,8,9,C.primary);
+        arrow.position={left:x+w-7,top:y-4,width:8,height:9,rotation:90};
+      }
+      text(slide,sections[i].title,...row.title,row.titleSize,{bold:true,color:C.primary,label:'explanation heading'});
+      text(slide,sections[i].body,...row.body,row.bodySize,{bold:row.emphasis,color:row.emphasis?C.primary:C.ink,label:'explanation body'});
     });
     return rows;
   }
@@ -170,26 +328,30 @@ export function createComponents(fontFamily, themeId = 'blue') {
       44 * 4 / 3, { color: C.on_primary, bold: true, align: 'center', label: 'fixed closing' });
   }
   function agenda(slide, items) {
-    if (!Array.isArray(items) || !items.length || items.length > 6)
-      throw new Error('agenda: this template supports 1–6 short items; consolidate sections without omitting primary papers');
+    if (!Array.isArray(items) || !items.length || items.length > 12)
+      throw new Error('agenda: this template supports 1–12 short items; larger reports need a deliberately authored navigation layout');
     shape(slide, 'rect', 16.900682, 16.930814, 1246.198636, 686.138478, 'none', C.blue, 2);
     shape(slide, 'rect', 503.184777, 16.930814, 273.630551, 160.035696, C.blue);
     text(slide, '目录', 556.256798, 35.438530, 167.486510, 96.937533, 72,
       { color: C.on_primary, bold: true, align: 'center' });
     text(slide, 'contents', 550, 120, 180, 38, 26.666667,
       { color: C.muted_on_primary, bold: true, align: 'center' });
-    const gap = items.length <= 4 ? 100.540578 : 77;
-    const first = items.length <= 4 ? 227.282625 : 212;
+    const twoColumns=items.length>6, rowsPerColumn=twoColumns?Math.ceil(items.length/2):items.length;
+    const gap = rowsPerColumn <= 4 ? 100.540578 : 77;
+    const first = rowsPerColumn <= 4 ? 227.282625 : 212;
     items.forEach((item, i) => {
-      const y = first + gap * i, numberHeight = items.length <= 4 ? 66.846929 : 60;
-      shape(slide, 'rect', 75.835906, y, 70.183412, numberHeight, C.blue);
-      text(slide, String(i + 1).padStart(2, '0'), 80, y + (numberHeight - 49) / 2, 61, 49, 37.333333,
+      const y = first + gap * (twoColumns?i%rowsPerColumn:i), numberHeight = items.length <= 4 ? 66.846929 : 60;
+      const x=twoColumns?64+604*Math.floor(i/rowsPerColumn):75.835906;
+      shape(slide, 'rect', x, y, twoColumns?62:70.183412, numberHeight, C.blue);
+      text(slide, String(i + 1).padStart(2, '0'), twoColumns?x+4:80, y + (numberHeight - 49) / 2, twoColumns?54:61, 49, twoColumns?32:37.333333,
         { color: C.on_primary, bold: true, align: 'center' });
-      text(slide, item.label, 163.435906, y + 12.420262, 905, 42.006300, 26.666667,
+      const labelWidth=twoColumns?418:905,labelH=twoColumns?Math.max(42.0063,estimatedLines(item.label,labelWidth,26.666667)*26.666667*1.35+2):42.0063;
+      if(labelH>gap-2)throw new Error('agenda: display label is too long; use a short group label and retain the complete title on paper-info');
+      text(slide, item.label, twoColumns?x+78:163.435906, twoColumns?y+(numberHeight-labelH)/2:y+12.420262, labelWidth, labelH, 26.666667,
         { color: '#000000', bold: true, label: 'agenda short label' });
-      text(slide, String(item.start_page), 1120, y + 12.420262, 84, 42.006300, 26.666667,
+      text(slide, String(item.start_page), twoColumns?x+510:1120, y + 12.420262, twoColumns?40:84, 42.006300, 26.666667,
         { color: C.blue, bold: true, align: 'right', label: 'agenda start page' });
     });
   }
-  return { shape, text, rule, header, pageTitle, footer, takeaway, label, cover, paragraphs, explanation, nativeTable, methods, closing, agenda, colors: C, fontFamily, themeId:theme.theme_id, paletteSha256:theme.palette_sha256 };
+  return { shape, text, rule, header, pageTitle, footer, takeaway, label, cover, paragraphs, explanation, nativeTable, methods, closing, agenda, reportCover, reportClosing, reportSignature, sectionDivider, paperInfo, colors: C, fontFamily, themeId:theme.theme_id, paletteSha256:theme.palette_sha256 };
 }
