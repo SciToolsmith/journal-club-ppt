@@ -1,95 +1,174 @@
-# Journal Club PPT
+<div align="center">
 
-[![CI](https://github.com/SciToolsmith/journal-club-ppt/actions/workflows/ci.yml/badge.svg)](https://github.com/SciToolsmith/journal-club-ppt/actions/workflows/ci.yml)
+<h1>Journal Club PPT</h1>
 
-面向 Codex 的论文组会汇报技能。上传一篇或多篇论文 PDF，确认**总页数与主题色**后，围绕研究问题、方法、关键证据和结论组织中文汇报，最终交付一个可编辑的 PPTX。
+<p><strong>将一篇或多篇论文，整理成可编辑的中文组会汇报。</strong></p>
 
-项目地址：[SciToolsmith/journal-club-ppt](https://github.com/SciToolsmith/journal-club-ppt)
+<p>面向 Codex 的文献组会 Skill，支持单篇精读与多篇比较。</p>
 
-## 怎么使用
+<p>
+  <a href="https://github.com/SciToolsmith/journal-club-ppt/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/SciToolsmith/journal-club-ppt/ci.yml?branch=main&amp;style=flat-square&amp;label=checks" alt="CI 检查状态" /></a>
+  <a href="SKILL.md"><img src="https://img.shields.io/badge/Codex-Skill-32497B?style=flat-square" alt="Codex Skill" /></a>
+  <a href="#交付内容"><img src="https://img.shields.io/badge/PPTX-Editable-2F6B76?style=flat-square" alt="可编辑 PPTX" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-626873?style=flat-square" alt="MIT License" /></a>
+</p>
 
-安装后，在 Codex 中附上论文 PDF，并发送：
+<p>
+  <a href="#快速开始">快速开始</a> ·
+  <a href="#模板预览">模板预览</a> ·
+  <a href="#交付内容">交付内容</a> ·
+  <a href="#开发与维护">开发与维护</a>
+</p>
 
-```text
-使用 $journal-club-ppt，根据我上传的论文制作组会汇报。
-重点讲清研究问题、方法、主要发现和结论的适用边界。
-```
+</div>
 
-技能会先询问：
+---
 
-> 这次文献组会汇报 PPT 一共多少页（包含封面、目录、结束页等实际使用的页面），主题色选蓝、青、红、紫中的哪一种？可回复“15页，紫色”。
+| 单篇精读 | 多篇比较 | 可编辑交付 |
+| :--- | :--- | :--- |
+| 讲清研究问题、方法与关键发现 | 按论文的真实关联组织介绍与对比 | 生成一个可继续修改的 PowerPoint 文件 |
 
-回答后开始制作。已回答的项目不会重复询问；缺项只追问缺项，不默认选择页数或蓝色。页数未确认前不分析论文；页数已确认而颜色未确定时，可以先阅读和规划，排版与导出须等待颜色回答。未提供汇报人姓名时会省略，不填入占位姓名。
+## 模板预览
 
-多篇论文也可以直接说明汇报重点：
+![原生模板预览：封面、表格与方法流程](assets/readme/template-preview.png)
 
-```text
-使用 $journal-club-ppt，把这三篇论文做成18页、青色的组会汇报。
-围绕共同研究问题，比较方法、关键证据与不同结论的适用条件。
-```
+<p align="center"><sub>由仓库内的干净模板实际渲染，仅展示版式，不含论文内容。</sub></p>
 
-默认中文。单篇汇报不设目录；两篇及以上独立论文在封面后安排目录，补充材料和重复文件不额外计为一篇。总结与讨论放在结束页之前，所有页面均计入确认的总页数。具体栏目按论文类型和内容组织，不强套固定实验章节。
+同一套版式支持四种主题色。封面、栏目、表格与流程统一配色，论文原图保留原色。
 
-## 内容与交付
+<p align="center">
+  <img src="https://img.shields.io/badge/蓝色-32497B?style=for-the-badge" alt="蓝色" />
+  <img src="https://img.shields.io/badge/青色-2F6B76?style=for-the-badge" alt="青色" />
+  <img src="https://img.shields.io/badge/红色-AD2C34?style=for-the-badge" alt="红色" />
+  <img src="https://img.shields.io/badge/紫色-671D6F?style=for-the-badge" alt="紫色" />
+</p>
 
-- 阅读全文并审阅全部主图、主表，选择支撑汇报主线的证据，不要求把每张原文图都放进PPT。
-- 保留关键数值、单位、对照条件和结论边界，区分作者陈述、分析判断与假设。多篇论文只在可比条件下综合，不强行归纳共同结论。
-- 使用统一的原生版式和蓝、青、红、紫四套主题色；论文原图中有科学含义的颜色保持原样。
-- 标题、正文、图注、表格和简单流程使用可编辑对象。科学原图作为独立图片嵌入，可移动、缩放；图片内部的曲线、标签和数值并不因此变成可编辑数据。
-- 最终仅交付一个 `journal-club.pptx`。全文提取、裁图、计划、源代码、PDF预览及检查报告留作内部材料，默认不另交讲稿或源码包。
+## 快速开始
 
-本技能用于论文文献汇报，不处理个人研究进展、开题报告或毕业答辩。它也不会把论文内容中的操作说明当作代理指令。
+**使用环境：** 需要具备 PDF、Presentations 和配套工作区运行时的 Codex。普通使用无需手写构建代码。
 
-## 安装
+### 1. 安装技能
 
-推荐在 Codex 中使用已有的 `skill-installer`：
+在 Codex 中发送：
 
 ```text
 使用 $skill-installer，从 https://github.com/SciToolsmith/journal-club-ppt
-将仓库根目录的技能安装为 journal-club-ppt。若已有安装，不要覆盖。
+安装仓库根目录的 journal-club-ppt 技能。
 ```
 
-也可以手动克隆到个人技能目录。以下命令在目录已存在时停止，保留已有安装：
+<details>
+<summary>手动安装</summary>
 
 ```sh
-if [ -e "$HOME/.codex/skills/journal-club-ppt" ] || [ -L "$HOME/.codex/skills/journal-club-ppt" ]; then
-  printf '%s\n' 'journal-club-ppt 已存在，请先核对现有安装，不要直接覆盖。'
-else
-  mkdir -p "$HOME/.codex/skills"
-  git clone https://github.com/SciToolsmith/journal-club-ppt.git "$HOME/.codex/skills/journal-club-ppt"
-fi
+mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills"
+git clone https://github.com/SciToolsmith/journal-club-ppt.git \
+  "${CODEX_HOME:-$HOME/.codex}/skills/journal-club-ppt"
 ```
 
-更新已有安装应作为单独操作，先检查本地改动；上面的命令不会自动更新或替换它。
+已有安装时，先核对并保留本地修改，再执行更新。上述克隆命令不会覆盖已有的非空目录。
 
-## 运行环境
+</details>
 
-本项目是由 Codex 执行的技能，不是仅靠克隆仓库就能独立运行的PDF转换程序。实际制作需要宿主提供 PDF 与 Presentations 能力、可用的中文字体，以及配套的 Python 和 Node.js 运行时。
+### 2. 上传论文并发起汇报
 
-在 Codex 桌面中，通过 `load_workspace_dependencies` 定位 bundled runtime。构建器使用其中提供的私有 `@oai/artifact-tool`，**不要执行 `npm install @oai/artifact-tool`**，也不要从其他机器复制绝对运行时路径。来源预处理使用 `pypdf`、`Pillow` 和 `pypdfium2`；显式提供 Poppler 路径时可选择相应渲染后端。依赖检查不会自动安装软件。
+附上一篇或多篇论文 PDF，然后发送：
 
-普通使用不需要手写构建参数。维护或排查时查阅：
+```text
+使用 $journal-club-ppt，根据我上传的论文制作组会汇报。
+重点讲清研究问题、方法、关键证据和结论的适用边界。
+```
 
-- [来源预处理与裁图](references/source-preparation.md)
-- [制作入口与组件字段](references/build-api.md)
-- [最终质量检查](references/quality-check.md)
-- [设计依据与实现范围](references/design-notes.md)
+接着确认**总页数与主题色**，例如回复：`15页，紫色`。如果请求中已经写明，技能会直接沿用，不重复询问。
 
-## 检查与维护
+### 3. 获取 PPTX
 
-准备好所需 Python 依赖与 Node.js 后，在仓库根目录运行：
+技能完成论文分析、页面制作和逐页复核后，交付一个 **`journal-club.pptx`**。
+
+<details>
+<summary>多篇论文的调用示例</summary>
+
+```text
+使用 $journal-club-ppt，把上传的三篇论文做成18页、青色的组会汇报。
+围绕共同研究问题，比较各篇的方法、关键证据和结论边界。
+```
+
+论文之间缺少可靠关联时，采用分篇介绍，保留各自的来源和实验条件，不强行归纳共同结论。
+
+</details>
+
+## 汇报如何组织
+
+| 环节 | 处理重点 |
+| :--- | :--- |
+| 论文理解 | 阅读全文，审阅主图主表，识别研究问题与方法逻辑 |
+| 证据选择 | 保留关键结果、实验条件与结论边界，为实质结论关联来源 |
+| 页面规划 | 在确认的总页数内组织叙事，按内容选择版式 |
+| 成品复核 | 核对科学内容，完整渲染最终 PPTX 并逐页检查 |
+
+总页数包含封面、目录和结束页等全部实际页面。单篇默认不设目录；两篇及以上独立论文在封面后安排目录，补充材料和重复文件不额外计为一篇。栏目随论文类型与论证需要调整。
+
+## 交付内容
+
+| 内容 | 在 PowerPoint 中的形式 |
+| :--- | :--- |
+| 标题、正文、图注 | 可编辑文本 |
+| 表格、简单流程 | 原生表格、形状与连线 |
+| 论文科研图 | 独立图片，可移动和缩放；图内曲线与数值仍属于图片 |
+
+**默认只交付 PPTX。** 提取文本、裁图、计划、预览和检查记录留在内部工作目录；讲稿、PDF 或源码包仅在另行要求时提供。
+
+## 使用说明
+
+- **用于文献组会。** 支持单篇精读和多篇汇报；个人研究进展、开题及毕业答辩不属于当前范围。
+- **保留证据边界。** 区分作者结论、分析判断与假设；跨论文比较需要核对研究对象、指标和实验条件。
+- **材料需要可读。** 扫描质量差、文字错序或缺失关键材料时，可能需要进一步处理或补充。
+- **检查覆盖不同层面。** 自动检查验证文件与数据结构，科学解读和实际版面仍需结合原文与最终渲染复核。
+
+## 开发与维护
+
+<details>
+<summary><strong>运行依赖与本地检查</strong></summary>
+
+Codex 桌面通过 `load_workspace_dependencies` 定位 Python、Node.js 和配套库。构建器使用宿主提供的 `@oai/artifact-tool`、`sharp` 与 Presentations 工具，不从公共 npm 安装私有 `@oai/artifact-tool`。
+
+PDF 预处理依赖 `pypdf`、`Pillow` 和 `pypdfium2`；也可显式选择已安装的 Poppler 后端。
+
+在开发环境中运行基础检查：
 
 ```sh
+python -m pip install -r requirements-test.txt
 python -m unittest discover -s tests -p 'test_*.py'
 node --test tests/test_navigation.mjs tests/test_build_deck.mjs
 ```
 
-测试覆盖页数与选色状态、来源和计划检查、缓存、裁图及部分版式行为。真实PPTX导出、重新导入和渲染的集成测试还依赖宿主的 bundled runtime、Presentations能力与字体；环境未配置时，相关测试可能跳过。CI通过不等于每项渲染集成测试都已运行。
+公共 CI 运行 Python 与可移植 Node 测试。另有 3 项 PPTX 集成测试依赖 Codex 宿主环境，未配置时明确跳过；CI 状态不能替代成品的科学与视觉复核。
 
-每次实际汇报仍须核对科学内容，并完整渲染最终PPTX、逐页检查。扫描件、文字提取错序、缺失补充材料或复杂图表可能需要进一步处理；无法恢复且影响汇报成立的材料需要用户补充。脚本检查不能证明科学理解正确，也不能保证任何论文一次制作就达到交付质量。
+</details>
 
-## 公开资产与许可
+<details>
+<summary><strong>目录结构与详细文档</strong></summary>
 
-公开版保留由本项目组件生成的干净 starter、原创组件、主题色及必要的版式目录。原始 `reference.pptx`、原版模板截图和含示例论文内容的预览不随仓库发布，也不作为宣传图使用。
+```text
+journal-club-ppt/
+├── SKILL.md       # 技能入口与执行规则
+├── agents/        # Codex 显示与调用配置
+├── assets/        # 干净模板、配色与版式索引
+├── references/    # 分析、制作与检查说明
+├── scripts/       # 来源处理、构建与交付工具
+└── tests/         # 工作流和构建测试
+```
 
-本仓库的代码与文档采用 [MIT License](LICENSE)。MIT许可不扩展到用户提供的论文、原始K105模板或其他第三方参考材料；本项目不据此声明这些材料具有再分发许可。第三方说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+| 文档 | 内容 |
+| :--- | :--- |
+| [来源预处理](references/source-preparation.md) | 全文提取、页面预览与裁图 |
+| [构建接口](references/build-api.md) | 制作入口与组件字段 |
+| [质量检查](references/quality-check.md) | 科学内容、版面与交付复核 |
+| [设计记录](references/design-notes.md) | 设计取舍、验证范围与维护依据 |
+
+</details>
+
+## 许可与素材
+
+代码与文档采用 [MIT License](LICENSE)。公开版包含原生组件及其生成的干净模板；原始参考 PPT、原版截图和示例论文内容不随仓库发布。
+
+用户论文与其他第三方材料保留各自权利，详见 [第三方说明](THIRD_PARTY_NOTICES.md)。
