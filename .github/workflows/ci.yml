@@ -47,7 +47,7 @@ jobs:
         run: |
           env -u RUNTIME_NODE_MODULES -u RUNTIME_PYTHON \
             -u BUILDER_TEST_WORKDIR -u BUILDER_PRESENTATIONS_SKILL \
-            node --test tests/test_build_deck.mjs tests/test_navigation.mjs
+            node --test tests/test_*.mjs
 
       - name: Explain validation scope
         if: always()
@@ -55,7 +55,7 @@ jobs:
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
           Public CI runs Python workflow/source-preparation tests (including real PDFium PDF rendering and cropping) and portable Node deck/navigation tests.
 
-          Three Node integration tests are explicitly skipped because they require the Codex artifact-tool runtime and, for finalization, the installed Presentations skill. This workflow does not validate PPTX export, PPTX rendering, fonts, or human/agent visual review. Run those integrations in the supported Codex host before claiming that a generated deck is ready for delivery.
+          Four Node integration tests are explicitly skipped because they require the Codex artifact-tool runtime and, for finalization, the installed Presentations skill. This workflow does not validate PPTX export, PPTX rendering, fonts, or human/agent visual review. Run those integrations in the supported Codex host before claiming that a generated deck is ready for delivery.
           EOF
 
   required-validation:

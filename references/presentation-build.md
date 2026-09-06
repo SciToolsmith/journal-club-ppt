@@ -1,25 +1,23 @@
 # 制作执行方式
 
-页数与主题色确认、阅读与计划完成后制作，先通过check-plan。页数已答而颜色未答时可先完成阅读和内容规划，排版与导出须等待颜色回答。仍使用当前环境的Presentations技能及其原生可编辑对象能力；组件封装常用代码，不取消其运行时、导出和验收要求。
+本文件只用于执行入口定位；字段见 [build-api.md](build-api.md)，检查边界见 [quality-check.md](quality-check.md)。不把三份文件的同义说明重复读写成新清单。
 
-## 一次准备运行时
+## 准备一次
 
-调用load_workspace_dependencies获取实际Python、Node与Node库目录。将RUNTIME_NODE_MODULES、RUNTIME_PYTHON设为本次返回的绝对路径，使用返回的Node执行脚本，并定位当前Presentations技能目录。完成其要求的authoring marker；不重复展开已读的通用说明。字体从当前可用字体中选择并传入；缺字时处理字体并重新渲染。
+页数、颜色与汇报人已有真实回答，阅读和计划完成后制作。通过 load_workspace_dependencies 取得 Python、Node 和库路径，设置 RUNTIME_NODE、RUNTIME_NODE_MODULES、RUNTIME_PYTHON；按当前 Presentations 技能完成其必需读取及 authoring marker，核实字体可用。新任务从 get-report 取得生成日期，封面和结束页共用同一署名信息。
 
-## 复用构建组件
+普通任务直接使用现有组件，不重新生成 starter、运行技能回归或阅读全部源码。原文公式/示意图采用清晰裁图加可编辑说明即可；只有现成组件不能表达内容时才写 custom。未知字段或容量报错只查对应接口。
 
-按[build-api.md](build-api.md)给deck-plan中的页面增加render字段。常规页面使用现成封面、目录、正文、单图/双图、表格、方法、总结和固定结束页组件，来源说明与备注自动从papers/claims生成。单篇省略目录，多篇按实际顺序编排目录；固定结束页须在已确认总页数内预留。实验数值用命名引用统一维护。
+## 首稿与修订
 
-构建器从run中已确认的主题读取统一配色，不手写任务级`--theme`。封面、标题、角标、目录、表格、流程和结束页共同换色，自定义原生对象也使用组件主题；科研原图颜色不变。K105版式与汇报范围不随颜色改变。
+通过 check-plan 后构建首稿，使用 `--preview representative`。explanation 按 `composition`、组数及有/无结论条组合各选最长一页，省略 `composition` 按 `prose` 处理；同时覆盖 custom 及诊断页。查看本轮所选页，集中修改影响正确性、可读性或不符合用户明确版式要求的问题。
 
-保留页数与原始科学内容，不能为了适配组件删掉必要信息。容量检查失败时精简重复文字、改图框或调整页面分配；内容独特时用custom页面扩展原生对象。不要通过持续缩字或整页截图解决问题。
+修订稿使用 `--preview 3,8` 等实际改动页号；共享组件改变时包括所有受影响页。若最终导出字体有疑点，才用 `--render-pptx` 选看对应页。不要对无关页反复重看、反复修改同样合理的留白或整稿重排。
 
-内容过少也需要调整：按[layout-composition.md](layout-composition.md)选择有语义标题的explanation、相关证据图或真实关系图，协调主体位置与图文比例。严重稀疏不能只居中后继续交付。查看回执中的layout_diagnostics；代表预览会自动包含这些风险页，但没有报警的页面仍须实际检查美观。
+## 终验一次
 
-构建器只生成内部候选PPTX与回执，不写最终output，不生成已复核状态。首轮使用`--preview representative`覆盖实际组件变体，额外检查独特或密集页；局部修改后仅预览受影响页。先检查实际中文换行、公式和图内字号，再进入终检。字段、几何和完整命令只在[build-api.md](build-api.md)维护；常规任务不用读取组件源码。
+稳定候选调用 `--finalize-pptx`，传当前 Presentations 技能路径。这个入口已完成验收和最终 PPTX 全页重新导入渲染，直接查看其结果，不再另写验收脚本或重复全稿渲染。
 
-## 导出后
+实际查看全页、确认无实质问题后写 review，运行 workflow finalize 得到唯一交付。科学内容和未变版面复用已完成的核验，改色后全页查看。若最终文件确有新问题，修复后重新验收，不能因为预期“一次”而带错交付。
 
-优先使用构建器的`--finalize-pptx`入口，传入当前`--presentations-skill`路径。它调用该技能的finalizePresentation，复用制作回执中的要求与字体政策，自动设置内部产物及回执路径，默认完整渲染实际校验后的PPTX；不要另写任务级验收包装脚本，也不重复执行同一份文件的完整渲染。选页渲染仅供中途修订，不代替最终全页检查。接口不兼容时查看当前Presentations的验收文档，不绕过校验。备用渲染只能用已定位的bundled LibreOffice，不能用用户桌面安装版；缺字须修复。
-
-通过[quality-check.md](quality-check.md)后写review并调用workflow finalize；schema 3及已显式选色的旧任务须绑定当前theme_id与palette_sha256。改色后重新制作并实际查看全部导出页，科学分析可复用。最终只有该命令生成的单个PPTX可交付。
+接口失败才查当前 Presentations 验收文档。备用渲染仅使用 load_workspace_dependencies 定位的 bundled LibreOffice，不能使用用户桌面安装版；字体缺字需修复。

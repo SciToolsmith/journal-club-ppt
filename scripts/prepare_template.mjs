@@ -15,13 +15,17 @@ if(!path.isAbsolute(args['presentations-skill']||'')||!path.isAbsolute(process.e
 const theme=getTheme(args.theme||'blue');
 const runtime=await loadRuntime(args['runtime-node-modules']||process.env.RUNTIME_NODE_MODULES), c=createComponents(args.font,theme.theme_id),C=c.colors;
 const p=runtime.Presentation.create({slideSize:{width:STYLE.width,height:STYLE.height}});
-const layouts=['cover','text','single-figure','two-figures','table','methods','summary','agenda','closing'];
+const layouts=['cover','text','single-figure','two-figures','table','methods','summary','agenda','paper-info','section-divider','closing'];
+const report={presenter_name:'汇报人姓名',presenter_omitted:false,report_date:new Date().toLocaleDateString('sv-SE').replaceAll('-','.'),report_timezone:null};
+const sectionItems=[{group_id:'p1',number:'01',label:'第一篇论文的短题名',active:true,paper_ids:['P1']},{group_id:'p2',number:'02',label:'第二篇论文的短题名',active:false,paper_ids:['P2']},{group_id:'synthesis',number:'03',label:'文献阅读总结与思考',active:false,paper_ids:['P1','P2']}];
 function frame(s,x,y,w,h){c.shape(s,'rect',x,y,w,h,C.white,C.rule,1);c.text(s,'原文图表区域',x+20,y+h/2-18,w-40,40,24,{color:C.gray,align:'center'});}
 layouts.forEach((type,i)=>{
  const s=p.slides.add();s.background.fill=C.white;
- if(type==='cover')c.cover(s,'论文题名',{subtitle:'研究主题',body:['论文出处']});
+ if(type==='cover')c.reportCover(s,report);
  else if(type==='agenda')c.agenda(s,[{label:'第一篇论文的研究主题',start_page:3},{label:'第二篇论文的研究主题',start_page:6},{label:'综合比较与讨论',start_page:8}]);
- else if(type==='closing')c.closing(s);
+ else if(type==='closing')c.reportClosing(s,report);
+ else if(type==='section-divider')c.sectionDivider(s,{group_id:'p1',number:'01',label:sectionItems[0].label,items:sectionItems});
+ else if(type==='paper-info'){c.header(s,'1.1 文献基本信息',i+1);c.paperInfo(s,{title:'论文完整题名',title_zh:'必要时可另列中文译名',authors:['真实作者信息'],venue:'发表载体',year:'发表年份'},{summary:'简要交代文献研究对象、核心问题与主要研究内容。正式汇报中据用户论文填写，不将本页标签作为事实。',keywords:['据原文提炼的关键词']});c.footer(s,'论文出处与原文定位');}
  else {
   const names={text:'研究问题', 'single-figure':'单图与解释', 'two-figures':'并列图表',table:'实验条件对比',methods:'关键方法步骤',summary:'结论与讨论'};
   c.header(s,names[type],i+1);
@@ -42,7 +46,7 @@ const candidate=path.join(args.workdir,`starter-candidate-${Date.now()}.pptx`),c
 await fs.mkdir(path.dirname(checked),{recursive:true});
 await(await runtime.PresentationFile.exportPptx(p)).save(candidate);
 const {finalizePresentation}=await import(pathToFileURL(path.join(args['presentations-skill'],'container_tools/artifact_tool_utils.mjs')).href);
-await finalizePresentation({workspaceDir:args.workdir,candidatePath:candidate,finalPath:checked,pythonExecutable:process.env.RUNTIME_PYTHON,integrityValidatorPath:path.join(args['presentations-skill'],'container_tools/inspect_presentation_package_integrity.py'),layoutValidatorPath:path.join(args['presentations-skill'],'container_tools/inspect_presentation_layout_geometry.py'),explicitTotalSlideCount:9,requiredNativeTableOwnerSlides:[5],requiredNativeChartOwnerSlides:[],layoutArgs:['--expected-slide-size-emu','12192000,6858000','--validate-heading-fit','--require-native-table-slide','5'],fontPolicy:{basis:'design',families:[args.font]},verifyArtifactToolImport:true,receiptPath:path.join(args.workdir,`starter-validation-${Date.now()}.json`)});
+await finalizePresentation({workspaceDir:args.workdir,candidatePath:candidate,finalPath:checked,pythonExecutable:process.env.RUNTIME_PYTHON,integrityValidatorPath:path.join(args['presentations-skill'],'container_tools/inspect_presentation_package_integrity.py'),layoutValidatorPath:path.join(args['presentations-skill'],'container_tools/inspect_presentation_layout_geometry.py'),explicitTotalSlideCount:layouts.length,requiredNativeTableOwnerSlides:[5],requiredNativeChartOwnerSlides:[],layoutArgs:['--expected-slide-size-emu','12192000,6858000','--validate-heading-fit','--require-native-table-slide','5'],fontPolicy:{basis:'design',families:[args.font]},verifyArtifactToolImport:true,receiptPath:path.join(args.workdir,`starter-validation-${Date.now()}.json`)});
 await fs.copyFile(checked,output);
 // Import the actual exported starter before rendering; render success is not review.
 const imported=await runtime.PresentationFile.importPptx(await runtime.FileBlob.load(output));
@@ -53,6 +57,6 @@ const referenceHash=await fileHash(path.join(root,'assets/k105-blue/reference.pp
  if(error.code!=='ENOENT')throw error;
  return null;
 });
-const manifest={schema_version:1,purpose:'Clean K105 layout reference; filled decks are built from the same native components',generated_at:new Date().toISOString(),runtime_version:runtime.runtimeVersion,starter_sha256:await fileHash(output),reference_sha256:referenceHash,components_sha256:await fileHash(path.join(root,'scripts/deck_components.mjs')),font_family:args.font,font_fallback_rule:'Verify availability through the bundled runtime. Prefer the original template family when available; otherwise explicitly record a visually checked CJK fallback. Never silently substitute or shrink.',slide_size:[1280,720],theme_id:theme.theme_id,palette_sha256:theme.palette_sha256,primary:C.primary,cover_band:[0,211.42,1280,261.78],cover_marks:COVER_MARKS,layouts:layouts.map((type,i)=>({type,slide:i+1})),sample_content:false,package_validation_passed:true,render_verified:selected.length===layouts.length,rendered_slide_numbers:selected,visual_review_status:'pending',previews_are_private:true};
+const manifest={schema_version:2,report_profile:'group-meeting',purpose:'Clean K105 layout reference; filled decks are built from the same native components',generated_at:new Date().toISOString(),runtime_version:runtime.runtimeVersion,starter_sha256:await fileHash(output),reference_sha256:referenceHash,components_sha256:await fileHash(path.join(root,'scripts/deck_components.mjs')),font_family:args.font,font_fallback_rule:'Verify availability through the bundled runtime. Prefer the original template family when available; otherwise explicitly record a visually checked CJK fallback. Never silently substitute or shrink.',slide_size:[1280,720],theme_id:theme.theme_id,palette_sha256:theme.palette_sha256,primary:C.primary,cover_band:[0,211.42,1280,261.78],cover_marks:COVER_MARKS,layouts:layouts.map((type,i)=>({type,slide:i+1})),sample_content:false,package_validation_passed:true,render_verified:selected.length===layouts.length,rendered_slide_numbers:selected,visual_review_status:'pending',previews_are_private:true};
 await fs.writeFile(manifestPath,JSON.stringify(manifest,null,2));
 console.log(JSON.stringify({output,manifest:manifestPath,render_count:previews.length,previews:path.join(args.workdir,'starter-exported')}));

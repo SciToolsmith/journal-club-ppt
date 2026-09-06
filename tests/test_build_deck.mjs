@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { makeResolver, main, loadRuntime, sha256, checkDeckStructure, authorDeck, renderSlides, resolveWorkdir, parseArgs, previewNumbers, finalizationOptions } from '../scripts/build_deck.mjs';
-import { assertTextFits, createComponents, paragraphGeometry, explanationGeometry } from '../scripts/deck_components.mjs';
+import { assertTextFits, createComponents, paragraphGeometry, explanationGeometry, validateReportMetadata, REPORT_TITLE, CLOSING_TEXT } from '../scripts/deck_components.mjs';
 import { getTheme } from '../scripts/themes.mjs';
 
 test('workdir resolves relative paths and requires an explicit value',()=>{
@@ -32,6 +32,27 @@ test('representative previews follow actual render types, both single-figure geo
   assert.equal(previewNumbers('all',13).length,13);
   assert.throws(()=>previewNumbers('representative',13),/matching deck plan/);
   assert.throws(()=>previewNumbers('0,2',13),/1–13/);
+});
+test('representative previews cover each explanation section count and takeaway geometry while retaining risk pages',()=>{
+  const slides=[];
+  for(const count of [2,3,4]) for(const takeaway of ['', '关键结论']) {
+    const render={type:'explanation',sections:Array.from({length:count},()=>({title:'说明',body:'正文'})),takeaway};
+    slides.push({render},{render:{...render}});
+  }
+  assert.deepEqual(previewNumbers('representative',slides.length,slides),[1,3,5,7,9,11]);
+  assert.deepEqual(previewNumbers('representative',slides.length,slides,[{slide:6,code:'composition-risk'},{slide:12,code:'composition-risk'}]),[1,3,5,6,7,9,11,12]);
+  const noTakeaway=[{render:{type:'explanation',sections:slides[0].render.sections}},slides[0]];
+  assert.deepEqual(previewNumbers('representative',noTakeaway.length,noTakeaway),[1]);
+});
+test('the densest explanation represents its geometry while risk pages and explicit selections stay intact',()=>{
+  const slide=(rows,body)=>({render:{type:'explanation',sections:Array.from({length:rows},()=>({title:'说明',body}))}});
+  const slides=[slide(4,'短句'),slide(4,'较长的中英文混排解释 VMD 和 FMD，实际换行仍须检查。'),
+    slide(4,'中等长度的句子'),slide(3,'短句'),slide(3,'另一种布局中较长的说明文字')];
+  assert.deepEqual(previewNumbers('representative',slides.length,slides),[2,5]);
+  const diagnostics=[{slide:1,code:'composition-risk'},{slide:4,code:'composition-risk'}];
+  assert.deepEqual(previewNumbers('representative',slides.length,slides,diagnostics),[1,2,4,5]);
+  assert.deepEqual(previewNumbers('1,3',slides.length,slides,diagnostics),[1,3]);
+  assert.deepEqual(previewNumbers('all',slides.length,slides),[1,2,3,4,5]);
 });
 test('finalization forwards actual requirements and fonts while retaining mandatory validators and import',()=>{
   const fontPolicy={basis:'user_request',families:['Requested font']};
@@ -84,19 +105,75 @@ test('short paragraphs are flagged even after balanced placement; spacing is bou
   assert.equal(moderate.sparse,false);
   assert.throws(()=>paragraphGeometry(['证据'.repeat(500)],box,27,28,'balanced'),/too much text/);
 });
-test('explanation rows preserve semantic pairs, spread across the body and reject overflow',()=>{
-  const sections=[{title:'研究对象',body:'振动信号包含目标冲击与多种干扰。'},{title:'研究困难',body:'按频带分解可能优先提取窄带干扰。'},{title:'本文思路',body:'相关峭度引导滤波器提取周期冲击。'}];
-  const rows=explanationGeometry(sections,[62,160,1154,421]);
-  assert.equal(rows.length,3);
-  rows.forEach((r,i)=>{
-    assert.ok(r.body[0]>=r.title[0]+r.title[2]+30);
-    assert.ok(Math.abs((r.title[1]+r.title[3]/2)-(r.body[1]+r.body[3]/2))<1);
-    if(i)assert.ok(r.divider>rows[i-1].body[1]+rows[i-1].body[3]);
+test('explanation compositions preserve hierarchy, readable type and nonoverlapping bounds',()=>{
+  const sections=[{title:'核心结论',body:'振动信号包含目标冲击与多种干扰。'},{title:'适用边界',body:'结论仍需在其他条件下独立验证。'},{title:'验证方向',body:'统一比较条件并保留来源和限定。'}];
+  const box=[62,160,1154,421];
+  for(const composition of ['prose','focus-left','focus-top','sequence']) {
+    const before=structuredClone(sections),items=explanationGeometry(sections,box,composition);
+    const boxes=items.flatMap(item=>[item.title,item.body,...(item.number?[item.number]:[])]);
+    for(const [x,y,w,h] of boxes) {
+      assert.ok(x>=box[0] && y>=box[1]);
+      assert.ok(x+w<=box[0]+box[2]+1 && y+h<=box[1]+box[3]+1);
+    }
+    boxes.forEach((a,i)=>boxes.slice(i+1).forEach(b=>{
+      const overlap=Math.min(a[0]+a[2],b[0]+b[2])-Math.max(a[0],b[0])>0.01 && Math.min(a[1]+a[3],b[1]+b[3])-Math.max(a[1],b[1])>0.01;
+      assert.equal(overlap,false,`${composition}: text boxes overlap`);
+    }));
+    items.forEach(item=>{
+      assert.equal(item.title[0],item.body[0]);
+      assert.ok(item.body[1]>item.title[1]+item.title[3]);
+      assert.ok(item.bodySize>=26);
+      assert.equal(item.divider,undefined);
+    });
+    if(composition.startsWith('focus-')) {
+      assert.ok(items[0].bodySize>items[1].bodySize);
+      assert.equal(items[0].emphasis,true);
+      if(composition==='focus-left')assert.ok(items[1].title[0]>items[0].title[0]+items[0].title[2]);
+      else assert.ok(items[1].title[1]>items[0].body[1]+items[0].body[3]);
+    }
+    assert.deepEqual(sections,before);
+  }
+  const four=[...sections,sections[1]];
+  for(const composition of ['prose','sequence'])assert.doesNotThrow(()=>explanationGeometry(four,[62,160,1154,481],composition));
+  assert.throws(()=>explanationGeometry(four,box,'focus-top'),/1–2 supporting/);
+  assert.throws(()=>explanationGeometry(sections,box,'rows'),/unknown composition/);
+  assert.throws(()=>explanationGeometry([sections[0]],box),/2–4/);
+  assert.throws(()=>explanationGeometry([{title:'甲',body:'',extra:'不可丢失'},sections[1]],box),/nonempty/);
+});
+test('explanation overflow identifies the composition and section without changing copy',()=>{
+  const sections=[{title:'首组',body:'简短正文'},{title:'需要重排',body:'证据'.repeat(200)},{title:'第三组',body:'简短正文'}];
+  const before=structuredClone(sections);
+  for(const composition of ['prose','focus-left','focus-top','sequence']) {
+    assert.throws(()=>explanationGeometry(sections,[62,160,1154,421],composition),error=>{
+      assert.match(error.message,/section 2 \("需要重排"\): text requires \d+\.\d px, available \d+\.\d px;.*never shrink/);
+      assert.ok(error.message.includes(composition));return true;
+    });
+  }
+  assert.deepEqual(sections,before);
+  const longTitle='很长的标题'.repeat(10);
+  assert.throws(()=>explanationGeometry([{title:longTitle,body:'正文'},sections[0]],[62,160,1154,180]),error=>{
+    assert.ok(error.message.includes(`section 1 ("${Array.from(longTitle).slice(0,24).join('')}…")`));
+    assert.ok(!error.message.includes(longTitle));return true;
   });
-  assert.ok(rows[2].body[1]>470);
-  assert.throws(()=>explanationGeometry([sections[0]],[62,160,1154,421]),/2–4/);
-  assert.throws(()=>explanationGeometry([{title:'甲',body:'证据'.repeat(200)},sections[1]],[62,160,1154,421]),/never shrink/);
-  assert.throws(()=>explanationGeometry([{title:'甲',body:'',extra:'不可丢失'},sections[1]],[62,160,1154,421]),/nonempty/);
+});
+test('representative previews separately cover explanation compositions',()=>{
+  const sections=[{title:'主点',body:'正文'},{title:'支撑',body:'依据'}];
+  const slides=['prose','focus-left','focus-top','sequence',undefined].map(composition=>({render:{type:'explanation',sections,...(composition?{composition}:{})}}));
+  assert.deepEqual(previewNumbers('representative',slides.length,slides),[1,2,3,4]);
+});
+test('authoring adds the slide id to explanation failures and preserves the original cause without rendering',async()=>{
+  const shape=()=>{const text={};return {get text(){return text;},set text(value){text.value=value;}};};
+  const runtime={Presentation:{create:()=>({slides:{add:()=>({background:{},shapes:{add:shape},speakerNotes:{textFrame:{setText(){}}}})}})}};
+  const papers={papers:[{paper_id:'P1',evidence:[{evidence_id:'P1:E1',locator:'Fixture'}]}]};
+  const plan={slides:[
+    {slide_id:'S07',title:'需要修订的说明页',paper_ids:['P1'],evidence_ids:['P1:E1'],claims:[],render:{type:'explanation',sections:[]}},
+    {slide_id:'S08',title:'结束',paper_ids:[],evidence_ids:[],claims:[],render:{type:'closing'}},
+  ]};
+  await assert.rejects(authorDeck({runtime,workdir:'/unused',plan,papers,fontFamily:'Fixture Font',themeId:'blue'}),error=>{
+    assert.match(error.message,/^S07: explanation: use 2–4/);
+    assert.equal(error.message,`S07: ${error.cause.message}`);
+    return true;
+  });
 });
 function structureFixture(multiple=false) {
   const paper=id=>({paper_id:id,evidence:[{evidence_id:`${id}:E1`}]});
@@ -253,7 +330,7 @@ test('navigation headers and specific page titles remain editable with fitted co
     content('S6','两个模态的特征比较','results',{type:'two-figures',figures:[{evidence_id:'P1:Fig1',label:'模态一',caption:'原图内容保持完整。'},{evidence_id:'P1:Fig1',label:'模态二',caption:'图注与对应图像同侧。'}]}),
     content('S7','三个说明组保持独立可编辑','results',{type:'explanation',sections:[
       {title:'测试对象',body:'标题和正文均应保留为独立的原生文本对象。'},
-      {title:'对应关系',body:'每个小标题与对应正文在同一行构成说明组。'},
+      {title:'对应关系',body:'每个小标题位于对应正文上方，保持紧密关联。'},
       {title:'验证边界',body:'该页面仅用于软件测试，不代表任何科研结果。'},
     ],takeaway:'说明组使用真实文案形成清楚的阅读顺序'}),
     {slide_id:'S8',title:'汇报完毕，敬请老师同学批评指正！',layout_id:'derived:navigation-test',layout_reason:'Fixed ending',paper_ids:[],evidence_ids:[],claims:[],render:{type:'closing'}},
@@ -315,9 +392,8 @@ for section in plan['slides'][6]['render']['sections']:
  body=[shape for shape in native if shape[0]==section['body']]
  assert len(title)==len(body)==1,(section,title,body)
  title,body=title[0],body[0]
- assert title[1]+title[3]<body[1]
- assert abs((title[2]+title[4]/2)-(body[2]+body[4]/2))<1
-assert max(shape[2] for shape in native if shape[0] in [section['body'] for section in plan['slides'][6]['render']['sections']])>470
+ assert abs(title[1]-body[1])<1
+ assert title[2]+title[4]<body[2]
 print('Native navigation, explanation text, figure adjacency, image bytes and aspect ratio verified')`,receipt.pptx,path.join(privateDir,'deck-plan.json'),sha256(imageBytes)],{encoding:'utf8'});
   assert.equal(check.status,0,check.stderr);
   const imported=await runtime.PresentationFile.importPptx(await runtime.FileBlob.load(receipt.pptx));
@@ -421,4 +497,132 @@ assert any(hashlib.sha256(z.read(n)).hexdigest()==sys.argv[5] for n in z.namelis
   await assert.rejects(main(['--workdir',workdir,'--font','Source Han Sans CN','--out','_work/build/overflow.pptx']),/too much text/);
   await assert.rejects(fs.access(path.join(privateDir,'build/overflow.pptx')));
   console.log(`Inspected actual exported fixture: ${receipt.pptx}`);
+});
+
+function recordingSlide() {
+  const objects=[],images=[];
+  const slide={shapes:{add:options=>{
+    const record={...options,textStyle:{},textValue:''};
+    const obj={position:options.position,get text(){return record.textStyle;},set text(value){record.textValue=value;}};
+    objects.push(record);return obj;
+  }},images:{add:image=>{images.push(image);return image;}}};
+  return {slide,objects,images,texts:()=>objects.map(object=>object.textValue).filter(Boolean)};
+}
+const reportFixture={presenter_name:'张三',presenter_omitted:false,report_date:'2026.09.07',report_timezone:'Asia/Shanghai'};
+test('fixed report covers and closings use confirmed metadata and the public SVG icons',()=>{
+  for(const themeId of ['blue','purple']) {
+    const c=createComponents('Fixture Font',themeId),cover=recordingSlide(),closing=recordingSlide();
+    c.reportCover(cover.slide,reportFixture);c.reportClosing(closing.slide,reportFixture);
+    assert.deepEqual(cover.texts(),[REPORT_TITLE,'汇报人：张三','汇报日期：2026.09.07']);
+    assert.deepEqual(closing.texts(),[CLOSING_TEXT,'汇报人：张三','汇报日期：2026.09.07']);
+    assert.equal(cover.images.length,2);assert.equal(closing.images.length,2);
+    for(const image of cover.images) {
+      assert.equal(image.contentType,'image/svg+xml');
+      assert.match(Buffer.from(image.blob).toString(),/<svg\b[^>]*viewBox="[^"]+"/);
+      assert.ok(Buffer.from(image.blob).toString().includes(c.colors.primary));
+      if(themeId!=='blue')assert.ok(!Buffer.from(image.blob).toString().includes('#32497B'));
+    }
+  }
+  const omitted=recordingSlide();createComponents('Fixture Font').reportCover(omitted.slide,{...reportFixture,presenter_name:null,presenter_omitted:true});
+  assert.deepEqual(omitted.texts(),[REPORT_TITLE,'汇报日期：2026.09.07']);assert.equal(omitted.images.length,1);
+  assert.throws(()=>validateReportMetadata(),/confirmed report metadata/);
+  assert.throws(()=>validateReportMetadata({...reportFixture,presenter_name:null}),/confirmed presenter name/);
+  assert.throws(()=>validateReportMetadata({...reportFixture,presenter_omitted:true}),/cannot retain/);
+  assert.throws(()=>validateReportMetadata({...reportFixture,report_date:'2026.02.30'}),/real calendar/);
+  assert.throws(()=>validateReportMetadata({...reportFixture,report_timezone:'not-a-zone'}),/IANA/);
+  assert.equal(validateReportMetadata({...reportFixture,report_timezone:null}).report_timezone,null);
+});
+test('paper-info uses source metadata, keeps the complete title and omits unavailable ranking fields',()=>{
+  const c=createComponents('Fixture Font'),record=recordingSlide();
+  const paper={title:'A long English research title that remains complete across wrapped lines in the report',title_zh:'论文完整题名',authors:['Author One','Author Two','Author Three','Author Four','Author Five'],journal:'Journal of Synthetic Fixtures',year:2026,doi:'10.0000/fixture'};
+  c.paperInfo(record.slide,paper,{summary:'这是一条软件布局测试的研究内容说明。',keywords:['软件测试','可编辑文本']});
+  const texts=record.texts();assert.ok(texts.includes(paper.title));assert.ok(texts.includes(paper.title_zh));
+  assert.ok(texts.includes('作者：Author One, Author Two, Author Three 等（共 5 位）'));
+  assert.ok(texts.includes('DOI：10.0000/fixture'));assert.ok(!texts.some(value=>/影响因子|分区/.test(value)));
+  assert.equal(record.images.length,0);
+  assert.throws(()=>c.paperInfo(recordingSlide().slide,{title:'题名'},{summary:'内容'.repeat(400)}),/exceeds/);
+});
+test('section dividers mark precisely the active paper without content header or footer',()=>{
+  const c=createComponents('Fixture Font','purple'),record=recordingSlide();
+  const section={group_id:'g2',number:'02',label:'第二篇论文',items:[{group_id:'g1',number:'01',label:'第一篇论文',active:false},{group_id:'g2',number:'02',label:'第二篇论文',active:true},{group_id:'g3',number:'03',label:'综合思考',active:false}]};
+  c.sectionDivider(record.slide,section);
+  assert.ok(record.texts().includes('PART TWO'));assert.ok(!record.texts().some(value=>/来源|1\./.test(value)));
+  const active=record.objects.find(object=>object.textValue==='第二篇论文');
+  assert.equal(active.textStyle.style.color,'#000000');
+  assert.equal(record.objects.find(object=>object.textValue==='第一篇论文').textStyle.style.color,'#B9BCC3');
+});
+test('paper-info and divider evidence cannot substitute for actual substantive paper coverage',()=>{
+  const fixture=structureFixture();fixture.plan.slides[1].render.type='paper-info';
+  assert.throws(()=>checkDeckStructure(fixture.plan,fixture.papers),/actual content slide/);
+});
+
+test('new group-meeting reports build fixed covers, numbered dividers and editable paper information', {skip:!runtimeReady}, async()=>{
+  const runtime=await loadRuntime(process.env.RUNTIME_NODE_MODULES);
+  for(const multiple of [false,true]) {
+    const workdir=path.join(path.resolve(process.env.BUILDER_TEST_WORKDIR),`group-meeting-${multiple?'multi':'single'}-${Date.now()}`),priv=path.join(workdir,'_work');
+    await fs.mkdir(priv,{recursive:true});const source=path.join(workdir,'fixture.pdf');
+    const py=spawnSync(process.env.RUNTIME_PYTHON,['-c','from pypdf import PdfWriter; import sys; w=PdfWriter(); w.add_blank_page(width=320,height=160); w.write(sys.argv[1])',source],{encoding:'utf8'});assert.equal(py.status,0,py.stderr);
+    const fixture=structureFixture(multiple),{plan,papers}=fixture;
+    for(const paper of papers.papers)Object.assign(paper,{title:`Complete English source title for ${paper.paper_id}`,authors:['First Author','Second Author','Third Author','Fourth Author','Fifth Author'],year:2026,
+      citation:'Software regression fixture',pdf_page_count:1,source_sha256:sha256(await fs.readFile(source)),main_evidence_reviewed:true,main_evidence_ids:[],
+      evidence:[{evidence_id:`${paper.paper_id}:E1`,kind:'text',pdf_page:1,locator:'Synthetic fixture',source_excerpt:'A software test only.'}]});
+    const groups=papers.papers.map((paper,i)=>({group_id:`g${i+1}`,label:`论文主题${i+1}`,paper_ids:[paper.paper_id],sections:[
+      {section_id:`info${i+1}`,label:'文献基本信息',role:'paper_info'},{section_id:`findings${i+1}`,label:'主要结果与分析',role:'findings',covers:['background','methods','appraisal','implications']},
+    ]}));
+    plan.navigation={profile:'group-meeting',mode:multiple?'by-paper':'single',groups};
+    for(const [i,group] of groups.entries()) {
+      const body=plan.slides.find(slide=>slide.slide_id===`${group.paper_ids[0]}-body`);body.section_id=`findings${i+1}`;body.render.body=['原文主要发现及其适用边界。'];
+      const info={slide_id:`info-${group.group_id}`,title:'文献基本信息',paper_ids:group.paper_ids,evidence_ids:[],claims:[],section_id:`info${i+1}`,render:{type:'paper-info',summary:'研究论文中的问题、方法及其主要发现。',keywords:['研究问题','关键证据']}};
+      const insertion=[...(multiple?[{slide_id:`divider-${group.group_id}`,title:'论文切换',paper_ids:group.paper_ids,evidence_ids:[],claims:[],render:{type:'section-divider',group_id:group.group_id}}]:[]),info];
+      plan.slides.splice(plan.slides.indexOf(body),0,...insertion);
+    }
+    if(multiple)plan.slides[1].render.items=groups.map(group=>({label:group.label,paper_ids:group.paper_ids,target_slide_id:`divider-${group.group_id}`}));
+    for(const slide of plan.slides)Object.assign(slide,{layout_id:'derived:group-meeting-regression',layout_reason:'Group meeting software regression'});
+    const run={schema_version:4,status:'page_count_confirmed',target_slide_count:plan.slides.length,user_answer:String(plan.slides.length),theme_id:'purple',theme_user_answer:'紫色',
+      presenter_name:'张三',presenter_user_answer:'张三',presenter_omitted:false,report_timezone:'Asia/Shanghai',inputs:papers.papers.map(paper=>({paper_id:paper.paper_id,path:source}))};
+    for(const [name,value] of Object.entries({'run.json':run,'papers.json':papers,'deck-plan.json':plan}))await fs.writeFile(path.join(priv,name),JSON.stringify(value));
+    await assert.rejects(authorDeck({runtime,workdir,plan,papers,fontFamily:'Source Han Sans CN',themeId:'purple'}),/confirmed report metadata/);
+    const draft=await main(['--workdir',workdir,'--font','Source Han Sans CN','--out','_work/build/fixture.pptx']);
+    assert.equal(draft.report.presenter_name,'张三');assert.match(draft.report.report_date,/^\d{4}\.\d{2}\.\d{2}$/);
+    assert.equal(draft.navigation.headings['info-g1'].header,'1.1 文献基本信息');
+    if(multiple)assert.equal(draft.navigation.report_structure.divider_items['divider-g2'].number,'02');
+    const verify=spawnSync(process.env.RUNTIME_PYTHON,['-c',`import json,sys,zipfile,xml.etree.ElementTree as E
+z=zipfile.ZipFile(sys.argv[1]);p=json.load(open(sys.argv[2]));ns={'a':'http://schemas.openxmlformats.org/drawingml/2006/main','p':'http://schemas.openxmlformats.org/presentationml/2006/main'}
+def texts(n):return [t.text for t in E.fromstring(z.read(f'ppt/slides/slide{n}.xml')).findall('.//a:t',ns)]
+assert texts(1)==['组会汇报','汇报人：张三','汇报日期：'+sys.argv[3]]
+assert texts(len(p['slides']))==['汇报完毕，敬请老师同学批评指正！','汇报人：张三','汇报日期：'+sys.argv[3]]
+for i,slide in enumerate(p['slides'],1):
+ if slide['render']['type']=='paper-info':
+  assert any(t.startswith('Complete English source title') for t in texts(i))
+  assert any(t.endswith('文献基本信息') for t in texts(i))
+  assert len(E.fromstring(z.read(f'ppt/slides/slide{i}.xml')).findall('.//p:pic',ns))==0
+  notes=''.join(E.fromstring(z.read(f'ppt/notesSlides/notesSlide{i}.xml')).itertext());assert 'Fifth Author' in notes
+ if slide['render']['type']=='section-divider':
+  assert any(t.startswith('PART ') for t in texts(i));assert not any(t.startswith('来源：') for t in texts(i))
+print('Fixed report chrome, native source information and complete author notes verified')`,draft.pptx,path.join(priv,'deck-plan.json'),draft.report.report_date],{encoding:'utf8'});
+    assert.equal(verify.status,0,verify.stderr);
+    const imported=await runtime.PresentationFile.importPptx(await runtime.FileBlob.load(draft.pptx));
+    await renderSlides(imported,path.join(priv,'exported-previews'),Array.from({length:plan.slides.length},(_,i)=>i+1),1);
+  }
+});
+
+test('7–12 group navigation uses two readable columns and rejects larger navigation',()=>{
+  const c=createComponents('Fixture Font');
+  for(const count of [7,12]) {
+    const items=Array.from({length:count},(_,i)=>({group_id:`g${i+1}`,number:String(i+1).padStart(2,'0'),label:`研究主题 ${i+1}：主要发现与结论`,active:i===count-1,paper_ids:[`P${i+1}`],start_page:i*3+3}));
+    for(const type of ['agenda','divider']) {
+      const r=recordingSlide();if(type==='agenda')c.agenda(r.slide,items);else c.sectionDivider(r.slide,{...items.at(-1),items});
+      const labels=r.objects.filter(object=>items.some(item=>item.label===object.textValue));
+      assert.equal(labels.length,count);
+      assert.ok(labels.slice(0,Math.ceil(count/2)).every(object=>object.position.left<200));
+      assert.ok(labels.slice(Math.ceil(count/2)).every(object=>object.position.left>700));
+      for(const object of r.objects){const box=object.position;assert.ok(box.left>=0&&box.top>=0&&box.left+box.width<=1281&&box.top+box.height<=721);}
+      for(const object of labels)assert.equal(object.textStyle.style.fontSize,26.666667);
+    }
+  }
+  const tooMany=Array.from({length:13},(_,i)=>({group_id:`g${i}`,number:i+1,label:'研究主题',active:i===0}));
+  assert.throws(()=>c.agenda(recordingSlide().slide,tooMany),/1–12/);
+  assert.throws(()=>c.sectionDivider(recordingSlide().slide,{group_id:'g0',items:tooMany}),/2–12/);
+  const venue=recordingSlide();c.paperInfo(venue.slide,{title:'软件测试',venue:'Proceedings of an Example Conference',journal:'Ignored journal'},{summary:'软件测试内容。'});
+  assert.ok(venue.texts().includes('来源：Proceedings of an Example Conference'));assert.ok(!venue.texts().some(text=>text.includes('Ignored journal')));
 });

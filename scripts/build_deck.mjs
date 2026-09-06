@@ -6,7 +6,7 @@ import { createRequire } from 'node:module';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { createComponents, estimatedLines, STYLE } from './deck_components.mjs';
+import { createComponents, estimatedLines, STYLE, validateReportMetadata } from './deck_components.mjs';
 import { getTheme } from './themes.mjs';
 import { resolveNavigation } from './navigation.mjs';
 
@@ -77,7 +77,7 @@ export function evidenceIndex(papers) {
 }
 export function checkDeckStructure(plan, papers) {
   const slides = plan.slides, primary = new Set(papers.papers.filter(p => (p.source_role || 'primary') === 'primary').map(p => p.paper_id));
-  const thematicAgenda = plan.navigation?.mode === 'by-theme';
+  const thematicAgenda = plan.navigation?.mode === 'by-theme', groupMeeting = plan.navigation?.profile === 'group-meeting';
   const evidencePrimary = new Map(papers.papers.flatMap(paper => (paper.evidence || []).map(item =>
     [item.evidence_id, (paper.source_role || 'primary') === 'primary' ? paper.paper_id : paper.related_to])));
   if (!Array.isArray(slides) || !slides.length || !primary.size) throw new Error('Deck structure requires slides and at least one primary paper');
@@ -129,10 +129,15 @@ export function checkDeckStructure(plan, papers) {
     });
     if ([...primary].some(pid=>!covered.has(pid))) throw new Error('agenda items must cover all primary papers');
   }
-  const contentSources = new Set(slides.filter((_,i)=>!['cover','agenda','closing'].includes(types[i]))
+  const contentSources = new Set(slides.filter((_,i)=>!['cover','agenda','closing','section-divider','paper-info'].includes(types[i]))
     .flatMap(s=>[...(s.evidence_ids||[]),...(s.claims||[]).flatMap(c=>c.sources||[])]));
   for (const paper of papers.papers.filter(p=>primary.has(p.paper_id))) {
     if (!(paper.evidence||[]).some(e=>contentSources.has(e.evidence_id))) throw new Error(`${paper.paper_id}: primary paper needs its own evidence on an actual content slide; agenda declarations cannot substitute for content`);
+  }
+  if(groupMeeting) {
+    const covers=types.flatMap((type,index)=>type==='cover'?[index]:[]);
+    if(covers.length!==1||covers[0]!==0)throw new Error('group-meeting requires exactly one fixed cover as its first slide');
+    if(Object.keys(slides[0].render).some(key=>key!=='type'))throw new Error('group-meeting cover accepts only render.type; bibliography belongs on paper-info');
   }
   return { primary_paper_ids:[...primary], agenda_items:agendaItems, closing_index:endings[0]??null };
 }
@@ -140,8 +145,8 @@ function citationsFor(slide, papers, evidence) {
   const ids = [...new Set([...(slide.evidence_ids || []), ...(slide.claims || []).flatMap(claim => claim.sources || [])])];
   const sourceNotes = (slide.paper_ids || []).map(id => {
     const p = papers.papers.find(paper => paper.paper_id === id);
-    const title = p.citation || [p.title, p.authors?.join?.(', ') || p.authors, p.journal, p.year, p.doi && `DOI: ${p.doi}`].filter(Boolean).join('. ');
-    return `${id}: ${title || p.source_filename || id}`;
+    const title = p.citation || [p.title, p.authors?.join?.(', ') || p.authors, p.venue || p.journal || p.conference || p.publisher, p.year, p.doi && `DOI: ${p.doi}`].filter(Boolean).join('. ');
+    return `${id}: ${title || p.source_filename || id}${slide.render?.type==='paper-info' && Array.isArray(p.authors) && p.authors.length ? `\n完整作者：${p.authors.join(', ')}` : ''}`;
   });
   for (const id of ids) {
     const e = evidence.get(id);
@@ -161,7 +166,9 @@ function citationsFor(slide, papers, evidence) {
 function asLines(value) { if (value === undefined || value === '') return []; return Array.isArray(value) ? value : [value]; }
 function assertString(value, field) { if (typeof value !== 'string') throw new Error(`${field} must be text (numbers require a display string or condition_ref)`); }
 
-export async function authorDeck({ runtime, workdir, plan, papers, fontFamily, themeId }) {
+export async function authorDeck({ runtime, workdir, plan, papers, fontFamily, themeId, report }) {
+  const groupMeeting=plan.navigation?.profile==='group-meeting';
+  const reportMetadata=groupMeeting?validateReportMetadata(report):null;
   const structure = checkDeckStructure(plan, papers);
   const navigation = resolveNavigation(plan, papers);
   const theme = getTheme(themeId);
@@ -188,9 +195,10 @@ export async function authorDeck({ runtime, workdir, plan, papers, fontFamily, t
     currentEvidenceRefs = new Set([...(spec.evidence_ids || []), ...(spec.claims || []).flatMap(claim => claim.sources || [])]);
     if (!r?.type) throw new Error(`${spec.slide_id}: render.type is required. Select a built-in type or custom; the builder does not infer scientific copy from claims.`);
     const supported = {
-      cover:['type','subtitle','body'],text:['type','subtitle','body','takeaway'],summary:['type','subtitle','body','takeaway'],
-      explanation:['type','sections','takeaway'],
+      cover:groupMeeting?['type']:['type','subtitle','body'],text:['type','subtitle','body','takeaway'],summary:['type','subtitle','body','takeaway'],
+      explanation:['type','sections','composition','takeaway'],
       'single-figure':['type','body','figures','takeaway'],'two-figures':['type','figures','takeaway'],
+      'section-divider':['type','group_id'],'paper-info':['type','summary','keywords'],
       table:['type','subtitle','table','body','takeaway'],methods:['type','input','steps','stop','output'],closing:['type'],agenda:['type','items'],
     };
     if (supported[r.type]) for (const key of Object.keys(r)) if (!supported[r.type].includes(key)) throw new Error(`${spec.slide_id}: ${r.type} does not support render.${key}; use a documented field or custom layout. Content is never silently omitted.`);
@@ -199,16 +207,25 @@ export async function authorDeck({ runtime, workdir, plan, papers, fontFamily, t
     const slide = presentation.slides.add(); slide.background.fill = components.colors.white;
     const sources = citationsFor(spec, papers, evidence);
     slide.speakerNotes.textFrame.setText(sources.notes);
-    const isContent = !['cover','closing','agenda'].includes(r.type), heading = navigation.headings?.[spec.slide_id];
-    const pageTitleCreated = isContent && Boolean(heading);
+    const isContent = !['cover','closing','agenda','section-divider'].includes(r.type), heading = navigation.headings?.[spec.slide_id];
+    const pageTitleCreated = isContent && r.type!=='paper-info' && Boolean(heading);
     if (isContent) components.header(slide, heading?.header || spec.title, index + 1);
     if (pageTitleCreated) components.pageTitle(slide, spec.title);
     const bottom = r.takeaway ? 581 : 641;
     const contentArea = { x:62, y:pageTitleCreated ? 160 : 110, left:62, top:pageTitleCreated ? 160 : 110, width:1154, bottom,
       height:bottom-(pageTitleCreated ? 160 : 110) };
-    if (r.type === 'cover') components.cover(slide, spec.title, { ...r, body });
-    else if (r.type === 'closing') components.closing(slide);
+    if (r.type === 'cover') groupMeeting?components.reportCover(slide,reportMetadata):components.cover(slide, spec.title, { ...r, body });
+    else if (r.type === 'closing') groupMeeting?components.reportClosing(slide,reportMetadata):components.closing(slide);
     else if (r.type === 'agenda') components.agenda(slide,resolve(structure.agenda_items[spec.slide_id]));
+    else if (r.type === 'section-divider') {
+      const divider=navigation.report_structure?.divider_items?.[spec.slide_id];
+      if(!groupMeeting || !divider)throw new Error(`${spec.slide_id}: section-divider requires a validated group-meeting report group`);
+      components.sectionDivider(slide,resolve(divider));
+    } else if (r.type === 'paper-info') {
+      const primaryPapers=papers.papers.filter(paper=>spec.paper_ids?.includes(paper.paper_id) && (paper.source_role || 'primary')==='primary');
+      if(primaryPapers.length!==1)throw new Error(`${spec.slide_id}: paper-info must identify exactly one primary paper`);
+      components.paperInfo(slide,primaryPapers[0],r);
+    }
     else if (r.type === 'text' || r.type === 'summary') {
       let top = pageTitleCreated ? 160 : 121;
       if (r.subtitle) { components.label(slide, r.subtitle, 64, top, 1150, 27); top += 64; }
@@ -217,9 +234,13 @@ export async function authorDeck({ runtime, workdir, plan, papers, fontFamily, t
       const geometry=components.paragraphs(slide, body, [64,top,1150,bottom-top], r.type === 'summary' ? 28 : 27, 28,r.subtitle?'top':'balanced');
       if(geometry.sparse)layoutDiagnostics.push({slide:index+1,slide_id:spec.slide_id,code:'sparse-text',
         estimated_natural_height:geometry.naturalHeight,available_height:bottom-top,
-        action:'Review composition: use substantive explanation sections, a source figure, an editable relationship diagram, or redistribute content. Do not stretch text to fill space.'});
+        action:'Review hierarchy and content relationships; retain reasonable whitespace or choose a fitting composition. Do not turn short copy into equal rows or cards merely to fill space.'});
     } else if(r.type==='explanation') {
-      components.explanation(slide,r.sections,[contentArea.x,contentArea.y,contentArea.width,contentArea.height]);
+      try {
+        components.explanation(slide,r.sections,[contentArea.x,contentArea.y,contentArea.width,contentArea.height],r.composition);
+      } catch (error) {
+        throw new Error(`${spec.slide_id}: ${error.message}`, { cause:error });
+      }
     } else if (r.type === 'single-figure' || r.type === 'two-figures') {
       const count = r.type === 'single-figure' ? 1 : 2;
       if (r.figures?.length !== count) throw new Error(`${spec.slide_id}: ${r.type} requires exactly ${count} figure(s)`);
@@ -260,9 +281,9 @@ export async function authorDeck({ runtime, workdir, plan, papers, fontFamily, t
       await custom.default({ slide, components, presentation, slideSpec:spec, resolve, addFigure,
         contentArea, pageTitleCreated, navigationHeading:heading || null });
     } else throw new Error(`Unsupported render type: ${r.type}`);
-    if (!['cover','closing','agenda'].includes(r.type)) { if (r.type !== 'methods' && r.takeaway) components.takeaway(slide,r.takeaway); components.footer(slide,sources.footer); }
+    if (!['cover','closing','agenda','section-divider'].includes(r.type)) { if (r.type !== 'methods' && r.takeaway) components.takeaway(slide,r.takeaway); components.footer(slide,sources.footer); }
   }
-  return { presentation, assets, nativeTableSlides, methodSlides, customModules, theme, navigation, layoutDiagnostics };
+  return { presentation, assets, nativeTableSlides, methodSlides, customModules, theme, navigation, report:reportMetadata, layoutDiagnostics };
 }
 
 function privatePath(workdir, candidate, defaultPath) {
@@ -272,15 +293,27 @@ function privatePath(workdir, candidate, defaultPath) {
 }
 async function noOverwrite(file) { try { await fs.access(file); throw new Error(`Refusing to overwrite ${file}; use a new path`); } catch(error) { if (error.code !== 'ENOENT') throw error; } }
 export function representativePreviewNumbers(slides) {
-  const seen = new Set(), numbers = [];
+  const seen = new Set(), numbers = [], denseExplanations = new Map();
   slides.forEach((slide,index) => {
     const render = slide.render;
     if (!render?.type) throw new Error('Representative previews require each slide\'s actual render.type');
     const key = render.type === 'custom' ? `custom:${index}` : render.type === 'single-figure'
-      ? `single-figure:${asLines(render.body).length ? 'with-body' : 'full-width'}` : render.type;
-    if (!seen.has(key)) { seen.add(key); numbers.push(index+1); }
+      ? `single-figure:${asLines(render.body).length ? 'with-body' : 'full-width'}`
+      : render.type === 'explanation'
+      ? `explanation:${render.composition || 'prose'}:${render.sections?.length}:${render.takeaway ? 'with-takeaway' : 'without-takeaway'}` : render.type;
+    if (!seen.has(key)) {
+      seen.add(key);
+      if (render.type !== 'explanation') numbers.push(index+1);
+    }
+    if (render.type === 'explanation') {
+      // Copy length is only a sampling hint. Actual wrapping still needs review.
+      const score = (render.sections || []).reduce((sum, section) =>
+        sum + Array.from(section.title || '').length + Array.from(section.body || '').length, 0);
+      if (!denseExplanations.has(key) || score > denseExplanations.get(key).score)
+        denseExplanations.set(key, { slide:index+1, score });
+    }
   });
-  return numbers;
+  return [...new Set([...numbers, ...[...denseExplanations.values()].map(item=>item.slide)])].sort((a,b)=>a-b);
 }
 export function previewNumbers(value, count, slides, diagnostics=[]) {
   if (!value || value === 'none') return [];
@@ -317,6 +350,12 @@ async function buildContext(workdir, source, receiptFile, python) {
   if (!receipt.fontPolicy || typeof receipt.fontPolicy !== 'object') throw new Error('Build receipt must declare its actual fontPolicy');
   const theme=confirmedTheme(workdir,python);
   if (receipt.theme_id!==theme.theme_id || receipt.palette_sha256!==theme.palette_sha256) throw new Error('Build receipt is stale: confirmed theme changed; rebuild before finalization');
+  if(plan.navigation?.profile==='group-meeting') {
+    const generated=validateReportMetadata(receipt.report), current=confirmedReport(workdir,python);
+    if(generated.presenter_name!==current.presenter_name || generated.presenter_omitted!==current.presenter_omitted)
+      throw new Error('Build receipt is stale: confirmed presenter changed; rebuild before finalization');
+    // Retain the actual generation date even if export review happens on a later day.
+  }
   return { receipt, receiptPath, plan, papers, slides:makeResolver(papers)(plan.slides) };
 }
 function confirmedTheme(workdir,python) {
@@ -326,6 +365,11 @@ function confirmedTheme(workdir,python) {
   const selection=JSON.parse(selected.stdout);
   if(selection.palette_sha256!==getTheme(selection.theme_id).palette_sha256)throw new Error('Confirmed theme palette does not match the current registry; recheck the saved selection before authoring');
   return selection;
+}
+function confirmedReport(workdir,python) {
+  const selected=spawnSync(python,[path.join(SCRIPT_DIR,'workflow.py'),'get-report','--workdir',workdir],{encoding:'utf8'});
+  if(selected.error||selected.status!==0)throw new Error(`get-report failed: ${(selected.stderr||selected.stdout||selected.error?.message||'unknown failure').trim()}`);
+  return validateReportMetadata(JSON.parse(selected.stdout));
 }
 export function finalizationOptions({workdir,source,output,skillDir,python,receipt,receiptPath}) {
   if (!path.isAbsolute(skillDir || '')) throw new Error('Pass --presentations-skill ABS for the current installed Presentations skill');
@@ -402,19 +446,20 @@ export async function main(argv=process.argv.slice(2)) {
   if(!path.isAbsolute(python||''))throw new Error('Pass absolute --python or RUNTIME_PYTHON from load_workspace_dependencies');
   if(!args.font?.trim())throw new Error('--font is required: use a verified installed family matching the reference or document the fallback');
   const themeSelection=confirmedTheme(workdir,python),theme=getTheme(themeSelection.theme_id);
-  const checked=spawnSync(python,[path.join(SCRIPT_DIR,'workflow.py'),'check-plan','--workdir',workdir],{encoding:'utf8'});
+  const checked=spawnSync(python,[path.join(SCRIPT_DIR,'workflow.py'),'check-plan','--workdir',workdir],{encoding:'utf8',env:{...process.env,RUNTIME_NODE:process.execPath}});
   if(checked.error||checked.status!==0)throw new Error(`check-plan failed: ${(checked.stderr||checked.stdout||checked.error?.message||'unknown failure').trim()}`);
   const planFile=path.join(workdir,'_work/deck-plan.json'),paperFile=path.join(workdir,'_work/papers.json'),run=await json(path.join(workdir,'_work/run.json'));
   const [plan,papers]=await Promise.all([json(planFile),json(paperFile)]);
+  const report=plan.navigation?.profile==='group-meeting'?confirmedReport(workdir,python):undefined;
   if(plan.slides.length!==run.target_slide_count)throw new Error('Plan does not match the user-confirmed total slide count');
   previewNumbers(args.preview,plan.slides.length,makeResolver(papers)(plan.slides));
   const candidate=privatePath(workdir,args.out,`_work/build/candidate-${Date.now()}.pptx`); await noOverwrite(candidate); await fs.mkdir(path.dirname(candidate),{recursive:true});
-  const authorStarted=Date.now(), authored=await authorDeck({runtime,workdir,plan,papers,fontFamily:args.font,themeId:themeSelection.theme_id});
+  const authorStarted=Date.now(), authored=await authorDeck({runtime,workdir,plan,papers,fontFamily:args.font,themeId:themeSelection.theme_id,report});
   await (await runtime.PresentationFile.exportPptx(authored.presentation)).save(candidate);
   const authorSeconds=(Date.now()-authorStarted)/1000;
   const reviewNumbers=previewNumbers(args.preview,plan.slides.length,makeResolver(papers)(plan.slides),authored.layoutDiagnostics);
   const files=await renderSlides(authored.presentation,`${candidate}.previews`,reviewNumbers,scale);
-  const receipt={schema_version:1,operation:'build-draft',theme_id:theme.theme_id,theme_label:theme.label,palette_sha256:theme.palette_sha256,legacy_theme_default:themeSelection.legacy_default,runtime_version:runtime.runtimeVersion,pptx:candidate,pptx_sha256:await fileHash(candidate),papers_sha256:await fileHash(paperFile),deck_plan_sha256:await fileHash(planFile),builder_sha256:await fileHash(fileURLToPath(import.meta.url)),components_sha256:await fileHash(path.join(SCRIPT_DIR,'deck_components.mjs')),custom_modules:authored.customModules,navigation:authored.navigation,navigation_sha256:await fileHash(path.join(SCRIPT_DIR,'navigation.mjs')),slide_count:plan.slides.length,render_count:files.length,previews:files,assets:authored.assets,requirements:{explicitTotalSlideCount:run.target_slide_count,requiredNativeTableOwnerSlides:authored.nativeTableSlides,requiredNativeChartOwnerSlides:[]},fontPolicy:{basis:'design',families:[args.font]},method_slides:authored.methodSlides,timings:{author_export_seconds:authorSeconds,total_seconds:(Date.now()-started)/1000},review_status:'pending-scientific-exported-visual-and-editability-review'};
+  const receipt={schema_version:1,operation:'build-draft',theme_id:theme.theme_id,theme_label:theme.label,palette_sha256:theme.palette_sha256,legacy_theme_default:themeSelection.legacy_default,runtime_version:runtime.runtimeVersion,pptx:candidate,pptx_sha256:await fileHash(candidate),papers_sha256:await fileHash(paperFile),deck_plan_sha256:await fileHash(planFile),builder_sha256:await fileHash(fileURLToPath(import.meta.url)),components_sha256:await fileHash(path.join(SCRIPT_DIR,'deck_components.mjs')),custom_modules:authored.customModules,...(authored.report?{report:authored.report}:{}),navigation:authored.navigation,navigation_sha256:await fileHash(path.join(SCRIPT_DIR,'navigation.mjs')),slide_count:plan.slides.length,render_count:files.length,previews:files,assets:authored.assets,requirements:{explicitTotalSlideCount:run.target_slide_count,requiredNativeTableOwnerSlides:authored.nativeTableSlides,requiredNativeChartOwnerSlides:[]},fontPolicy:{basis:'design',families:[args.font]},method_slides:authored.methodSlides,timings:{author_export_seconds:authorSeconds,total_seconds:(Date.now()-started)/1000},review_status:'pending-scientific-exported-visual-and-editability-review'};
   receipt.layout_diagnostics=authored.layoutDiagnostics;
   await fs.writeFile(`${candidate}.build.json`,JSON.stringify(receipt,null,2));
   console.log(JSON.stringify({candidate,receipt:`${candidate}.build.json`,slide_count:plan.slides.length,draft_preview_count:files.length,composition_review_pages:[...new Set(authored.layoutDiagnostics.map(item=>item.slide))]}));return receipt;

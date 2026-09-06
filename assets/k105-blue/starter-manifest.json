@@ -1,11 +1,12 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
+  "report_profile": "group-meeting",
   "purpose": "Clean K105 layout reference; filled decks are built from the same native components",
-  "generated_at": "2026-09-06T12:45:25.567Z",
+  "generated_at": "2026-09-06T18:49:35.197Z",
   "runtime_version": "2.8.59",
-  "starter_sha256": "d6396027ad33b766eb612ba4a7ad7ae52adbb6356566105920129917437e2bf9",
-  "reference_sha256": "78a5f8b435656adc363c6f827fcdd588f0a85ace9c5d6fbb9bf31bd4a25a7282",
-  "components_sha256": "3da6153d728842b48dfd4d66b319feac7a89d6f19df0342eadd32634ee4b1361",
+  "starter_sha256": "a18956d52f16303f448c817b2296b3fe6ad939ff3fcf797b7ec8f0bfef748245",
+  "reference_sha256": null,
+  "components_sha256": "57fedc73aa846bf7b11a58eac286bdc526af15b127d46fe6fa9eafb343150e12",
   "font_family": "Source Han Sans CN",
   "font_fallback_rule": "Verify availability through the bundled runtime. Prefer the original template family when available; otherwise explicitly record a visually checked CJK fallback. Never silently substitute or shrink.",
   "slide_size": [
@@ -93,8 +94,16 @@
       "slide": 8
     },
     {
-      "type": "closing",
+      "type": "paper-info",
       "slide": 9
+    },
+    {
+      "type": "section-divider",
+      "slide": 10
+    },
+    {
+      "type": "closing",
+      "slide": 11
     }
   ],
   "sample_content": false,
@@ -109,34 +118,12 @@
     6,
     7,
     8,
-    9
+    9,
+    10,
+    11
   ],
   "visual_review_status": "passed",
-  "previews_are_private": true,
-  "visual_review_scope": "Actual exported slide 1 visually reviewed after removing the cover kicker. Slides 2-9 are unchanged: complete slide XML is identical to the prior reviewed starter after removing random creationId elements. All nine slides were re-imported and rendered.",
-  "review_coverage_slide_numbers": [
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-    7,
-    8,
-    9
-  ],
-  "inherited_review": {
-    "prior_starter_sha256": "0d78d85eb36c7413ed3dfb1ae0699f5ed03a08a9d1e812bc593292cfa813e6b7",
-    "slide_numbers": [
-      2,
-      3,
-      4,
-      5,
-      6,
-      7,
-      8,
-      9
-    ],
-    "basis": "Complete slide XML identical after removing random creationId elements; prior visual review retained for unchanged pages."
-  }
+  "visual_reviewed_slide_numbers": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+  "visual_review_basis": "Individually inspected all 11 1280x720 PNGs rendered after importing the final exported starter.pptx with bundled artifact-tool 2.8.59. Checked text fit, alignment, native table, method connectors, figure placeholders, and the independently drawn cover/closing icons. No native PowerPoint application rendering was performed.",
+  "previews_are_private": true
 }

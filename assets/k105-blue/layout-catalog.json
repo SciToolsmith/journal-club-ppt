@@ -15,12 +15,12 @@
     {
       "layout_id": "cover",
       "label": "封面与结束页",
-      "purpose": "汇报主题、汇报人和日期；结束页可选，计入用户确认的总页数。"
+      "purpose": "固定组会汇报封面与结束页，填写已确认的汇报人和生成日期，均计入总页数。"
     },
     {
       "layout_id": "contents",
       "label": "目录与章节过渡",
-      "purpose": "文献列表和当前章节提示；可按总页数省略过渡页。"
+      "purpose": "多篇汇报的总目录与逐篇章节过渡，高亮当前篇并联动实际页码；单篇不设目录或过渡页。"
     },
     {
       "layout_id": "paper-info",
@@ -45,7 +45,7 @@
     {
       "layout_id": "results-two-figures",
       "label": "双图证据与结论",
-      "purpose": "并排说明两个相关实验，或比较两组证据；P8带底部结论区。"
+      "purpose": "并排说明两个相关实验或比较两组证据，可配底部结论区。"
     },
     {
       "layout_id": "results-three-figures",

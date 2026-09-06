@@ -1,0 +1,26 @@
+{
+  "profile": "group-meeting",
+  "description": "栏目按组会讲述功能组织，不复制论文的章节目录。每篇独立编号；单篇也使用1.1、1.2。",
+  "default_roles": ["paper_info", "background", "methods", "findings", "appraisal", "implications"],
+  "rules": [
+    "每篇第一小节固定为文献基本信息，role为paper_info，首张正文为paper-info。",
+    "其余栏目按论文类型选择名称；六个默认功能允许合并、展开或根据汇报目的取舍，不要求六张独立页面。",
+    "合并内容用section.covers声明额外覆盖的功能；文献基本信息必须独立，既不能被其他栏目covers代替，也不能covers其他功能。",
+    "一个小节可以有多页；栏目标题保持稳定，具体页标题说明本页要汇报的发现或问题。",
+    "作者结论、原文证据和汇报人的评价分开表述；课题关联未知时不得虚构个人研究计划。"
+  ],
+  "sections": [
+    {"role":"paper_info","label":"文献基本信息","required":true,"content":"完整题名、作者、发表载体与时间、可核实标识、主要研究内容和关键词；分区或影响因子仅在明确需要且查证后列出。","alternatives":[]},
+    {"role":"background","label":"研究背景与核心问题","content":"已有认识、尚未解决的问题、本文要回答什么及其意义。","alternatives":["问题提出与研究意义","学术背景与研究争议"]},
+    {"role":"methods","label":"研究思路与方法","content":"研究设计、分析路径与关键选择；保留理解结果所必需的细节。","alternatives":["实验设计与方法","模型构建与求解","理论框架与分析路径","材料来源与研究方法","文献检索与综合方法"]},
+    {"role":"findings","label":"主要结果与分析","content":"围绕核心问题选择关键证据，说明证据如何支持发现以及适用范围。","alternatives":["研究发现与解释","主要定理与证明思路","核心观点与史料论证","案例分析与发现","综述结论与研究趋势"]},
+    {"role":"appraisal","label":"研究贡献与局限","content":"评价相对既有研究的贡献，以及研究设计、证据和论证的限制。","alternatives":["创新点与不足","理论贡献与适用边界","论证评价与争议"]},
+    {"role":"implications","label":"总结与研究启发","content":"提炼回答、可借鉴之处和可讨论的问题；仅在已知课题背景时具体关联自己的研究。","alternatives":["主要结论与启示","阅读思考与课题关联"]},
+    {"role":"theory","label":"理论基础与研究假设","optional":true,"content":"理论框架或假设是理解全文的关键时独立展开。","alternatives":["概念界定与理论框架"]},
+    {"role":"materials","label":"数据、材料与研究对象","optional":true,"content":"样本选择、数据来源、文本范围或史料可靠性需要重点交代时独立展开。","alternatives":["数据来源与样本","史料与文本范围"]},
+    {"role":"mechanism","label":"关键机制、推导或证明","optional":true,"content":"核心贡献集中在机制解释、数学推导或证明时独立展开。","alternatives":["作用机制与解释","核心证明思路"]},
+    {"role":"validation","label":"可靠性与适用性检验","optional":true,"content":"稳健性、敏感性、外部验证、反例或替代解释是判断结论的关键时独立展开。","alternatives":["稳健性与敏感性分析","反例与适用边界"]},
+    {"role":"comparison","label":"文献比较与学术争议","optional":true,"content":"比较已有观点、方法、证据或多篇论文；多篇综合组可采用此功能。","alternatives":["文献比较与综合思考","共同结论与分歧"]},
+    {"role":"custom","label":"自定义栏目","optional":true,"requires_reason":true,"content":"标准功能无法容纳且对汇报有明确价值的栏目；在section.reason说明原因。","alternatives":[]}
+  ]
+}
