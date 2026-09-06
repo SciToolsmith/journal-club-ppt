@@ -15,7 +15,6 @@
 
 <p>
   <a href="#快速开始">快速开始</a> ·
-  <a href="#模板预览">模板预览</a> ·
   <a href="#交付内容">交付内容</a> ·
   <a href="#开发与维护">开发与维护</a>
 </p>
@@ -27,21 +26,6 @@
 | 单篇精读 | 多篇比较 | 可编辑交付 |
 | :--- | :--- | :--- |
 | 讲清研究问题、方法与关键发现 | 按论文的真实关联组织介绍与对比 | 生成一个可继续修改的 PowerPoint 文件 |
-
-## 模板预览
-
-![原生模板预览：封面、表格与方法流程](assets/readme/template-preview.png)
-
-<p align="center"><sub>由仓库内的干净模板实际渲染，仅展示版式，不含论文内容。</sub></p>
-
-同一套版式支持四种主题色。封面、栏目、表格与流程统一配色，论文原图保留原色。
-
-<p align="center">
-  <img src="https://img.shields.io/badge/蓝色-32497B?style=for-the-badge" alt="蓝色" />
-  <img src="https://img.shields.io/badge/青色-2F6B76?style=for-the-badge" alt="青色" />
-  <img src="https://img.shields.io/badge/红色-AD2C34?style=for-the-badge" alt="红色" />
-  <img src="https://img.shields.io/badge/紫色-671D6F?style=for-the-badge" alt="紫色" />
-</p>
 
 ## 快速开始
 
@@ -79,6 +63,8 @@ git clone https://github.com/SciToolsmith/journal-club-ppt.git \
 ```
 
 接着确认**总页数与主题色**，例如回复：`15页，紫色`。如果请求中已经写明，技能会直接沿用，不重复询问。
+
+主题色可选**蓝、青、红、紫**。封面、栏目、表格与流程统一配色，论文原图保留原色。
 
 ### 3. 获取 PPTX
 
