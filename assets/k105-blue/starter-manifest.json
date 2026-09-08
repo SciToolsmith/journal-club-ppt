@@ -2,11 +2,11 @@
   "schema_version": 2,
   "report_profile": "group-meeting",
   "purpose": "Clean K105 layout reference; filled decks are built from the same native components",
-  "generated_at": "2026-09-06T18:49:35.197Z",
+  "generated_at": "2026-09-06T17:08:00.742Z",
   "runtime_version": "2.8.59",
-  "starter_sha256": "a18956d52f16303f448c817b2296b3fe6ad939ff3fcf797b7ec8f0bfef748245",
-  "reference_sha256": null,
-  "components_sha256": "57fedc73aa846bf7b11a58eac286bdc526af15b127d46fe6fa9eafb343150e12",
+  "starter_sha256": "8fb475ab3434c742a0adc2ccd52402cfead047e3047b8fc69fb9e4ea2fd844e8",
+  "reference_sha256": "78a5f8b435656adc363c6f827fcdd588f0a85ace9c5d6fbb9bf31bd4a25a7282",
+  "components_sha256": "7b714d0776f1c3faad2b6ddd479f928340a949c8255e4ef2a3b2fd79dad792a7",
   "font_family": "Source Han Sans CN",
   "font_fallback_rule": "Verify availability through the bundled runtime. Prefer the original template family when available; otherwise explicitly record a visually checked CJK fallback. Never silently substitute or shrink.",
   "slide_size": [
@@ -123,7 +123,19 @@
     11
   ],
   "visual_review_status": "passed",
-  "visual_reviewed_slide_numbers": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-  "visual_review_basis": "Individually inspected all 11 1280x720 PNGs rendered after importing the final exported starter.pptx with bundled artifact-tool 2.8.59. Checked text fit, alignment, native table, method connectors, figure placeholders, and the independently drawn cover/closing icons. No native PowerPoint application rendering was performed.",
-  "previews_are_private": true
+  "previews_are_private": true,
+  "visual_reviewed_slide_numbers": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+  ],
+  "visual_review_basis": "实际导出starter全11页重新导入渲染。root实际查看1、8–11页，独立视觉代理实际查看2–7页；无裁切、重叠或缺字。封面、信息页、章节过渡与结束页已对照用户K105外观。仅为版式示意核验，标签不作为论文事实。"
 }

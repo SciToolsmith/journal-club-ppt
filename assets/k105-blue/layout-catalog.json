@@ -1,7 +1,11 @@
 {
   "schema_version": "1.0",
   "template_id": "k105-blue",
-  "purpose": "Public semantic layout IDs for the editable component renderer; original reference files and screenshots are not distributed.",
+  "reference_pptx": "reference.pptx",
+  "source_filename": "K105-蓝色-无校徽版-组会文献汇报PPT模板-多篇文献版.pptx",
+  "license_status": "user-supplied-reference",
+  "license_note": "用户提供的参考模板；本记录不授予或声明再分发许可。",
+  "slide_count": 25,
   "slide_size": {
     "width_emu": 12192000,
     "height_emu": 6858000,
@@ -9,58 +13,756 @@
     "height_inches": 7.5,
     "aspect_ratio": "16:9"
   },
-  "source_sha256": "78a5f8b435656adc363c6f827fcdd588f0a85ace9c5d6fbb9bf31bd4a25a7282",
-  "source_distribution": "not-included",
+  "design_authority": "reference.pptx；预览仅作外观参考，不用于推断精确文本度量。",
+  "preview_note": "复制自已审阅的本地渲染；渲染使用了中文字体替代，字宽、换行及部分英文截字可能与源PPTX不同。制作后须在实际字体环境复核。",
+  "contact_sheets": [
+    "previews/contact-1.jpg",
+    "previews/contact-2.jpg",
+    "previews/contact-3.jpg"
+  ],
+  "theme": {
+    "name": "1-灰蓝",
+    "colors": {
+      "dk1": "000000",
+      "lt1": "FFFFFF",
+      "dk2": "44546A",
+      "lt2": "E7E6E6",
+      "accent1": "32497B",
+      "accent2": "D9D9D9",
+      "accent3": "F2F2F2",
+      "accent4": "FFC000",
+      "accent5": "5B9BD5",
+      "accent6": "70AD47",
+      "hlink": "0563C1",
+      "folHlink": "954F72"
+    },
+    "font_scheme_name": "微软雅黑",
+    "fonts": {
+      "majorFont": {
+        "latin": "微软雅黑",
+        "ea": "微软雅黑",
+        "cs": ""
+      },
+      "minorFont": {
+        "latin": "微软雅黑",
+        "ea": "微软雅黑",
+        "cs": ""
+      }
+    }
+  },
+  "typography": {
+    "observed_explicit_run_sizes_pt": {
+      "12.0": 34,
+      "14.0": 126,
+      "16.0": 45,
+      "18.0": 54,
+      "20.0": 53,
+      "22.0": 14,
+      "24.0": 46,
+      "28.0": 23,
+      "32.0": 1,
+      "44.0": 1,
+      "54.0": 5,
+      "60.0": 3,
+      "66.0": 1
+    },
+    "observed_typeface_references": {
+      "+mj-ea": 476,
+      "+mn-ea": 179,
+      "微软雅黑": 140,
+      "+mn-cs": 298,
+      "思源黑体 CN Regular": 86,
+      "阿里巴巴普惠体 3.0 65 Medium": 2,
+      "Roboto Regular": 22,
+      "Roboto": 32
+    },
+    "role_summary": {
+      "cover_title_pt": 66,
+      "closing_title_pt": 44,
+      "body_slide_title_pt": 24,
+      "body_common_pt": "12–18",
+      "contents_text_pt": 20
+    },
+    "measurement_note": "字号为各slide XML中显式run声明的统计，含表格文字；不包括图表部件的独立字体声明，也不等同逐字有效字号。其他字符可能继承段落、母版或主题。主题字体需解析，实际显示受安装字体影响。"
+  },
+  "implementation_status": "layout reference and source-object hints only; no exact-fill API or stable semantic slot contract",
+  "source_id_warning": "源页号是该25页参考文件中的位置，不是稳定对象ID；shape ID仅在对应源页局部有效。复制、重排、导入或重新导出后必须重新读取对象树并按内容与几何核对，不能盲用本目录中的ID。",
+  "capacity_note": "内容容量是为可读性提出的编辑建议，不是自动测量的硬限制；以实际内容、字体和渲染检查为准。",
+  "source_object_summary_by_page": {
+    "1": {
+      "native_shapes_including_text": 16,
+      "picture_objects": 0,
+      "native_tables": 0,
+      "native_charts": 0,
+      "groups": 4,
+      "connectors": 0,
+      "placeholder_objects": 0,
+      "graphic_frame_hints": [],
+      "selected_text_object_hints": [
+        {
+          "source_shape_id": "106",
+          "source_text": "组会汇报"
+        }
+      ]
+    },
+    "2": {
+      "native_shapes_including_text": 12,
+      "picture_objects": 0,
+      "native_tables": 0,
+      "native_charts": 0,
+      "groups": 0,
+      "connectors": 0,
+      "placeholder_objects": 0,
+      "graphic_frame_hints": [],
+      "selected_text_object_hints": [
+        {
+          "source_shape_id": "75",
+          "source_text": "目录"
+        }
+      ]
+    },
+    "3": {
+      "native_shapes_including_text": 12,
+      "picture_objects": 0,
+      "native_tables": 0,
+      "native_charts": 0,
+      "groups": 0,
+      "connectors": 0,
+      "placeholder_objects": 0,
+      "graphic_frame_hints": [],
+      "selected_text_object_hints": []
+    },
+    "4": {
+      "native_shapes_including_text": 15,
+      "picture_objects": 1,
+      "native_tables": 1,
+      "native_charts": 0,
+      "groups": 0,
+      "connectors": 0,
+      "placeholder_objects": 0,
+      "graphic_frame_hints": [
+        {
+          "source_shape_id": "4",
+          "kind": "native-table",
+          "rows": 5,
+          "columns": 2
+        }
+      ],
+      "selected_text_object_hints": [
+        {
+          "source_shape_id": "2",
+          "source_text": "1.1 文献基本信息"
+        }
+      ]
+    },
+    "5": {
+      "native_shapes_including_text": 10,
+      "picture_objects": 1,
+      "native_tables": 0,
+      "native_charts": 0,
+      "groups": 0,
+      "connectors": 0,
+      "placeholder_objects": 0,
+      "graphic_frame_hints": [],
+      "selected_text_object_hints": [
+        {
+          "source_shape_id": "2",
+          "source_text": "1.2 研究背景与意义"
+        }
+      ]
+    },
+    "6": {
+      "native_shapes_including_text": 28,
+      "picture_objects": 0,
+      "native_tables": 0,
+      "native_charts": 0,
+      "groups": 0,
+      "connectors": 0,
+      "placeholder_objects": 0,
+      "graphic_frame_hints": [],
+      "selected_text_object_hints": [
+        {
+          "source_shape_id": "64",
+          "source_text": "1.3 实验流程及方法"
+        }
+      ]
+    },
+    "7": {
+      "native_shapes_including_text": 14,
+      "picture_objects": 0,
+      "native_tables": 1,
+      "native_charts": 1,
+      "groups": 0,
+      "connectors": 0,
+      "placeholder_objects": 0,
+      "graphic_frame_hints": [
+        {
+          "source_shape_id": "4",
+          "kind": "native-table",
+          "rows": 7,
+          "columns": 5
+        },
+        {
+          "source_shape_id": "8",
+          "kind": "native-chart"
+        }
+      ],
+      "selected_text_object_hints": [
+        {
+          "source_shape_id": "2",
+          "source_text": "1.4 实验结果及结论"
+        }
+      ]
+    },
+    "8": {
+      "native_shapes_including_text": 7,
+      "picture_objects": 2,
+      "native_tables": 0,
+      "native_charts": 0,
+      "groups": 0,
+      "connectors": 0,
+      "placeholder_objects": 0,
+      "graphic_frame_hints": [],
+      "selected_text_object_hints": [
+        {
+          "source_shape_id": "2",
+          "source_text": "1.4 实验结果及结论"
+        }
+      ]
+    },
+    "9": {
+      "native_shapes_including_text": 13,
+      "picture_objects": 2,
+      "native_tables": 0,
+      "native_charts": 0,
+      "groups": 0,
+      "connectors": 0,
+      "placeholder_objects": 0,
+      "graphic_frame_hints": [],
+      "selected_text_object_hints": [
+        {
+          "source_shape_id": "2",
+          "source_text": "1.4 实验结果及结论"
+        }
+      ]
+    },
+    "10": {
+      "native_shapes_including_text": 12,
+      "picture_objects": 0,
+      "native_tables": 0,
+      "native_charts": 0,
+      "groups": 0,
+      "connectors": 0,
+      "placeholder_objects": 0,
+      "graphic_frame_hints": [],
+      "selected_text_object_hints": []
+    },
+    "11": {
+      "native_shapes_including_text": 15,
+      "picture_objects": 1,
+      "native_tables": 1,
+      "native_charts": 0,
+      "groups": 0,
+      "connectors": 0,
+      "placeholder_objects": 0,
+      "graphic_frame_hints": [
+        {
+          "source_shape_id": "4",
+          "kind": "native-table",
+          "rows": 5,
+          "columns": 2
+        }
+      ],
+      "selected_text_object_hints": [
+        {
+          "source_shape_id": "2",
+          "source_text": "2.1 文献基本信息"
+        }
+      ]
+    },
+    "12": {
+      "native_shapes_including_text": 14,
+      "picture_objects": 1,
+      "native_tables": 0,
+      "native_charts": 0,
+      "groups": 0,
+      "connectors": 0,
+      "placeholder_objects": 0,
+      "graphic_frame_hints": [],
+      "selected_text_object_hints": [
+        {
+          "source_shape_id": "2",
+          "source_text": "2.2 研究背景与意义"
+        }
+      ]
+    },
+    "13": {
+      "native_shapes_including_text": 30,
+      "picture_objects": 0,
+      "native_tables": 0,
+      "native_charts": 0,
+      "groups": 0,
+      "connectors": 4,
+      "placeholder_objects": 0,
+      "graphic_frame_hints": [],
+      "selected_text_object_hints": [
+        {
+          "source_shape_id": "2",
+          "source_text": "2.3 实验流程及方法"
+        }
+      ]
+    },
+    "14": {
+      "native_shapes_including_text": 21,
+      "picture_objects": 3,
+      "native_tables": 0,
+      "native_charts": 0,
+      "groups": 0,
+      "connectors": 0,
+      "placeholder_objects": 0,
+      "graphic_frame_hints": [],
+      "selected_text_object_hints": [
+        {
+          "source_shape_id": "2",
+          "source_text": "2.4 实验结果及结论"
+        }
+      ]
+    },
+    "15": {
+      "native_shapes_including_text": 12,
+      "picture_objects": 0,
+      "native_tables": 0,
+      "native_charts": 0,
+      "groups": 0,
+      "connectors": 0,
+      "placeholder_objects": 0,
+      "graphic_frame_hints": [],
+      "selected_text_object_hints": []
+    },
+    "16": {
+      "native_shapes_including_text": 16,
+      "picture_objects": 1,
+      "native_tables": 1,
+      "native_charts": 0,
+      "groups": 0,
+      "connectors": 0,
+      "placeholder_objects": 0,
+      "graphic_frame_hints": [
+        {
+          "source_shape_id": "4",
+          "kind": "native-table",
+          "rows": 5,
+          "columns": 2
+        }
+      ],
+      "selected_text_object_hints": [
+        {
+          "source_shape_id": "2",
+          "source_text": "3.1 文献基本信息"
+        }
+      ]
+    },
+    "17": {
+      "native_shapes_including_text": 14,
+      "picture_objects": 1,
+      "native_tables": 0,
+      "native_charts": 0,
+      "groups": 0,
+      "connectors": 0,
+      "placeholder_objects": 0,
+      "graphic_frame_hints": [],
+      "selected_text_object_hints": [
+        {
+          "source_shape_id": "2",
+          "source_text": "3.2 研究背景与意义"
+        }
+      ]
+    },
+    "18": {
+      "native_shapes_including_text": 28,
+      "picture_objects": 0,
+      "native_tables": 0,
+      "native_charts": 0,
+      "groups": 0,
+      "connectors": 0,
+      "placeholder_objects": 0,
+      "graphic_frame_hints": [],
+      "selected_text_object_hints": [
+        {
+          "source_shape_id": "2",
+          "source_text": "3.3 实验流程及方法"
+        }
+      ]
+    },
+    "19": {
+      "native_shapes_including_text": 14,
+      "picture_objects": 2,
+      "native_tables": 0,
+      "native_charts": 0,
+      "groups": 0,
+      "connectors": 0,
+      "placeholder_objects": 0,
+      "graphic_frame_hints": [],
+      "selected_text_object_hints": [
+        {
+          "source_shape_id": "2",
+          "source_text": "3.4 实验结果及结论"
+        },
+        {
+          "source_shape_id": "15",
+          "source_text": "研究结论"
+        }
+      ]
+    },
+    "20": {
+      "native_shapes_including_text": 12,
+      "picture_objects": 0,
+      "native_tables": 0,
+      "native_charts": 0,
+      "groups": 0,
+      "connectors": 0,
+      "placeholder_objects": 0,
+      "graphic_frame_hints": [],
+      "selected_text_object_hints": []
+    },
+    "21": {
+      "native_shapes_including_text": 26,
+      "picture_objects": 0,
+      "native_tables": 0,
+      "native_charts": 0,
+      "groups": 0,
+      "connectors": 0,
+      "placeholder_objects": 0,
+      "graphic_frame_hints": [],
+      "selected_text_object_hints": [
+        {
+          "source_shape_id": "2",
+          "source_text": "90"
+        },
+        {
+          "source_shape_id": "24",
+          "source_text": "创新点"
+        },
+        {
+          "source_shape_id": "25",
+          "source_text": "4.1 文献总结"
+        }
+      ]
+    },
+    "22": {
+      "native_shapes_including_text": 21,
+      "picture_objects": 0,
+      "native_tables": 0,
+      "native_charts": 0,
+      "groups": 3,
+      "connectors": 0,
+      "placeholder_objects": 0,
+      "graphic_frame_hints": [],
+      "selected_text_object_hints": [
+        {
+          "source_shape_id": "2",
+          "source_text": "4.1 文献总结"
+        }
+      ]
+    },
+    "23": {
+      "native_shapes_including_text": 15,
+      "picture_objects": 0,
+      "native_tables": 0,
+      "native_charts": 0,
+      "groups": 0,
+      "connectors": 0,
+      "placeholder_objects": 0,
+      "graphic_frame_hints": [],
+      "selected_text_object_hints": [
+        {
+          "source_shape_id": "14",
+          "source_text": "4.2 阅读反思"
+        }
+      ]
+    },
+    "24": {
+      "native_shapes_including_text": 30,
+      "picture_objects": 0,
+      "native_tables": 0,
+      "native_charts": 0,
+      "groups": 0,
+      "connectors": 0,
+      "placeholder_objects": 0,
+      "graphic_frame_hints": [],
+      "selected_text_object_hints": [
+        {
+          "source_shape_id": "2",
+          "source_text": "4.3 后续改进方向"
+        }
+      ]
+    },
+    "25": {
+      "native_shapes_including_text": 17,
+      "picture_objects": 0,
+      "native_tables": 0,
+      "native_charts": 0,
+      "groups": 4,
+      "connectors": 0,
+      "placeholder_objects": 0,
+      "graphic_frame_hints": [],
+      "selected_text_object_hints": []
+    }
+  },
   "layouts": [
     {
-      "layout_id": "cover",
       "label": "封面与结束页",
-      "purpose": "固定组会汇报封面与结束页，填写已确认的汇报人和生成日期，均计入总页数。"
+      "source_pages_1_based": [
+        1,
+        25
+      ],
+      "previews": [
+        {
+          "source_page": 1,
+          "path": "previews/cover-slide-01.png"
+        }
+      ],
+      "purpose": "原模板封面与结束页的外观参考；当前组会规则固定采用封面与结束页并填写真实汇报人/生成日期，均计入总页数。",
+      "suggested_capacity": {
+        "title": "1行优先，约8–20个汉字；过长题名改为主题短标题",
+        "metadata": "汇报人和日期各1项"
+      },
+      "editability": "原生文字和几何装饰；未使用整页背景图。",
+      "cleanup_before_reuse": [
+        "替换XXX、20XX.XX.XX。",
+        "结束页删除或改写 Group Literature Report PPT Template - Multiple Literature Version 模板广告式英文。"
+      ],
+      "layout_id": "cover"
     },
     {
-      "layout_id": "contents",
       "label": "目录与章节过渡",
-      "purpose": "多篇汇报的总目录与逐篇章节过渡，高亮当前篇并联动实际页码；单篇不设目录或过渡页。"
+      "source_pages_1_based": [
+        2,
+        3,
+        10,
+        15,
+        20
+      ],
+      "previews": [
+        {
+          "source_page": 2,
+          "path": "previews/contents-slide-02.png"
+        }
+      ],
+      "purpose": "文献列表和当前章节提示；可按总页数省略过渡页。",
+      "suggested_capacity": {
+        "entries": "源版4项（三篇文献和总结），建议2–4项；更多文献分组或重排目录",
+        "entry_title": "每项1行短题名优先，完整题名放文献信息页"
+      },
+      "editability": "原生文本与形状；列表为逐页复制对象，未建立动态目录。",
+      "cleanup_before_reuse": [
+        "替换所有目录及过渡页中重复的三篇肿瘤免疫论文题名。",
+        "联动编号、当前章节高亮和总结位置。",
+        "英文原文为contents、PART ONE/TWO/THREE/FOUR；预览存在截字，英文统一正确拼写并检查文本框容量。"
+      ],
+      "layout_id": "contents"
     },
     {
-      "layout_id": "paper-info",
       "label": "文献信息",
-      "purpose": "展示真实题名/论文首页、书目信息、关键词和主要研究问题。"
+      "source_pages_1_based": [
+        4,
+        11,
+        16
+      ],
+      "previews": [
+        {
+          "source_page": 4,
+          "path": "previews/paper-info-slide-04.png"
+        }
+      ],
+      "purpose": "展示真实题名/论文首页、书目信息、关键词和主要研究问题。",
+      "suggested_capacity": {
+        "metadata_rows": "源版5行×2列，可改为作者、期刊、年份、DOI等已核实字段",
+        "keywords": "3–4个短词",
+        "summary": "1段约60–100字，或2–3条短句"
+      },
+      "editability": "P4/P11/P16均有原生5×2表格和1张论文/期刊图片；图片内部文字不能直接编辑。",
+      "cleanup_before_reuse": [
+        "三个原生表格均残留Nature、星淇、20XX/XX/XX、SCI一区、60.61，必须全部替换。",
+        "IF及分区无可靠来源时删除相应字段，不继承示例值。",
+        "期刊封面或论文截图必须替换成用户论文对应材料；不把期刊封面当作论文真实性证据。"
+      ],
+      "layout_id": "paper-info"
     },
     {
-      "layout_id": "background",
       "label": "背景、问题与意义",
-      "purpose": "一张背景图配研究背景、知识缺口或研究问题；综述也可使用。"
+      "source_pages_1_based": [
+        5,
+        12,
+        17
+      ],
+      "previews": [
+        {
+          "source_page": 5,
+          "path": "previews/background-slide-05.png"
+        }
+      ],
+      "purpose": "一张背景图配研究背景、知识缺口或研究问题；综述也可使用。",
+      "suggested_capacity": {
+        "visuals": "1张主要图；复杂多面板图宜拆页",
+        "text": "2个文本区，每区2–3条短句，每条约15–30字"
+      },
+      "editability": "原生标题与说明框，科研示意图为图片。",
+      "cleanup_before_reuse": [
+        "替换示例机制图及其图注。",
+        "研究意义必须来自本文依据或明确标为分析；不直接保留占位长句。"
+      ],
+      "layout_id": "background"
     },
     {
-      "layout_id": "methods",
       "label": "方法与实验流程",
-      "purpose": "解释实验或方法模块的目的、输入输出与顺序；不强加给没有实验的综述。"
+      "source_pages_1_based": [
+        6,
+        13,
+        18
+      ],
+      "previews": [
+        {
+          "source_page": 6,
+          "path": "previews/methods-slide-06.png"
+        }
+      ],
+      "purpose": "解释实验或方法模块的目的、输入输出与顺序；不强加给没有实验的综述。",
+      "suggested_capacity": {
+        "steps": "源版4步或6步；建议3–4步，6步只放很短的标签",
+        "per_step": "1个步骤名和1–2条短说明，约25–45字"
+      },
+      "editability": "原生形状和文本；P13含4个原生连接线对象；流程装饰可逐对象编辑。",
+      "cleanup_before_reuse": [
+        "替换实验一/方法一等占位名称，明确各步骤的论证作用。",
+        "步骤增减后重新检查箭头顺序和等宽排布。"
+      ],
+      "layout_id": "methods"
     },
     {
-      "layout_id": "results-table-chart",
       "label": "原生数据表与折线图",
-      "purpose": "有可靠原始数值时，使用可编辑表格和图表呈现结果。"
+      "source_pages_1_based": [
+        7
+      ],
+      "previews": [
+        {
+          "source_page": 7,
+          "path": "previews/results-table-chart-slide-07.png"
+        }
+      ],
+      "purpose": "有可靠原始数值时，使用可编辑表格和图表呈现结果。",
+      "suggested_capacity": {
+        "table": "源版7行×5列（含表头），复杂表需删减到关键比较或拆页",
+        "chart": "源版3系列×4分类；使用真实数据决定系列数",
+        "interpretation": "每侧1–2条关键结果，保留单位和比较条件"
+      },
+      "editability": "1个原生7×5表格、1个原生折线图，图表附嵌入Excel工作簿；需同步数据源和图表缓存。",
+      "cleanup_before_reuse": [
+        "表格小标题1–4、内容1–6及所有演示数字必须清空/替换。",
+        "图表系列1–3、数据1–4和示例数值必须替换；不得与用户论文结果混用。",
+        "复制页面时保留chart与嵌入工作簿关系，验证最终可编辑。"
+      ],
+      "layout_id": "results-table-chart"
     },
     {
-      "layout_id": "results-two-figures",
       "label": "双图证据与结论",
-      "purpose": "并排说明两个相关实验或比较两组证据，可配底部结论区。"
+      "source_pages_1_based": [
+        8,
+        9
+      ],
+      "previews": [
+        {
+          "source_page": 8,
+          "path": "previews/results-two-figures-slide-08.png"
+        }
+      ],
+      "purpose": "并排说明两个相关实验，或比较两组证据；P8带底部结论区。",
+      "suggested_capacity": {
+        "visuals": "2张主图，每图1条短解释",
+        "takeaway": "1条可被图中数据支持的结论，约25–45字"
+      },
+      "editability": "两张科研图片及原生解释文字；图片内部数据、坐标轴和标签不可直接编辑。",
+      "cleanup_before_reuse": [
+        "替换全部示例科研图和图注。",
+        "源P8/P9复用同一image3.jpg，不能误把重复素材当作不同实验。",
+        "保留面板标记、图例、轴标签、单位和显著性说明。"
+      ],
+      "layout_id": "results-two-figures"
     },
     {
-      "layout_id": "results-three-figures",
       "label": "三组实验结果",
-      "purpose": "三个简短实验或同一问题的三种证据；只用于图表足够清晰的场景。"
+      "source_pages_1_based": [
+        14
+      ],
+      "previews": [
+        {
+          "source_page": 14,
+          "path": "previews/results-three-figures-slide-14.png"
+        }
+      ],
+      "purpose": "三个简短实验或同一问题的三种证据；只用于图表足够清晰的场景。",
+      "suggested_capacity": {
+        "visuals": "3张简单图",
+        "per_column": "实验名、短图注、1–2条结果；复杂图改双图或单图页"
+      },
+      "editability": "3张图片，列标题和说明为原生文本；图中表格也是图片。",
+      "cleanup_before_reuse": [
+        "替换三个无关领域示例图片和重复图号。",
+        "避免三列放入完整论文多面板截图，优先选关键面板并留来源定位。"
+      ],
+      "layout_id": "results-three-figures"
     },
     {
-      "layout_id": "results-evidence-chain",
       "label": "证据到结论",
-      "purpose": "两项证据经文字解释汇总成一组研究结论。"
+      "source_pages_1_based": [
+        19
+      ],
+      "previews": [
+        {
+          "source_page": 19,
+          "path": "previews/results-evidence-chain-slide-19.png"
+        }
+      ],
+      "purpose": "两项证据经文字解释汇总成一组研究结论。",
+      "suggested_capacity": {
+        "evidence": "2张简单图或表",
+        "observations": "每项1条短解释",
+        "conclusions": "2–3条，区分观察结果与推论"
+      },
+      "editability": "2张科研图片，解释区和结论区为原生形状；左下表格为位图，不是原生表格。",
+      "cleanup_before_reuse": [
+        "替换原曲线图、MTT相关表格及所有占位结论。",
+        "结论强度与原论文证据一致，不因布局中的箭头而暗示因果关系。"
+      ],
+      "layout_id": "results-evidence-chain"
     },
     {
-      "layout_id": "synthesis",
       "label": "总结、借鉴与阅读反思",
-      "purpose": "单篇总结或多篇综合：共同发现、差异、局限和阅读启示；不填入个人实验进展。"
+      "source_pages_1_based": [
+        21,
+        22,
+        23,
+        24
+      ],
+      "previews": [
+        {
+          "source_page": 22,
+          "path": "previews/synthesis-slide-22.png"
+        }
+      ],
+      "purpose": "单篇总结或多篇综合：共同发现、差异、局限和阅读启示；不填入个人实验进展。",
+      "suggested_capacity": {
+        "primary_choice": "P22三点总结或P23三条反思优先",
+        "alternatives": "P21最多6个极短要点；P24最多6项文献层面的改进方向",
+        "per_item": "标题约4–10字，正文约20–45字"
+      },
+      "editability": "原生形状与文字，P21中心环形装饰包含隐藏/被覆盖文本残留。",
+      "cleanup_before_reuse": [
+        "P21检查并清除椭圆内部孤立文字90；中央创新点可按实际内容改为共同发现等。",
+        "替换借鉴点、改进方向等占位；不把论文建议写成已完成的个人工作。",
+        "源模板没有真正的跨文献比较矩阵，新增比较表需明确为适配布局。"
+      ],
+      "layout_id": "synthesis"
     }
   ],
   "adapted_layouts": [
@@ -69,5 +771,6 @@
       "guidance": "沿用#32497B、白底、左上标题和细分隔线；用原生表格比较研究问题/方法/关键证据/结论边界，最多4篇同页，更多拆页。不得标为原模板自带版式。",
       "layout_id": "cross-paper-comparison"
     }
-  ]
+  ],
+  "source_sha256": "78a5f8b435656adc363c6f827fcdd588f0a85ace9c5d6fbb9bf31bd4a25a7282"
 }
