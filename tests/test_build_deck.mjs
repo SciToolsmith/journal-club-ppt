@@ -509,7 +509,7 @@ function recordingSlide() {
   return {slide,objects,images,texts:()=>objects.map(object=>object.textValue).filter(Boolean)};
 }
 const reportFixture={presenter_name:'张三',presenter_omitted:false,report_date:'2026.09.07',report_timezone:'Asia/Shanghai'};
-test('fixed report covers and closings use confirmed metadata and the public SVG icons',()=>{
+test('fixed report covers and closings use confirmed metadata and the extracted template icons',()=>{
   for(const themeId of ['blue','purple']) {
     const c=createComponents('Fixture Font',themeId),cover=recordingSlide(),closing=recordingSlide();
     c.reportCover(cover.slide,reportFixture);c.reportClosing(closing.slide,reportFixture);
@@ -518,7 +518,7 @@ test('fixed report covers and closings use confirmed metadata and the public SVG
     assert.equal(cover.images.length,2);assert.equal(closing.images.length,2);
     for(const image of cover.images) {
       assert.equal(image.contentType,'image/svg+xml');
-      assert.match(Buffer.from(image.blob).toString(),/<svg\b[^>]*viewBox="[^"]+"/);
+      assert.match(Buffer.from(image.blob).toString(),/Extracted without path redesign/);
       assert.ok(Buffer.from(image.blob).toString().includes(c.colors.primary));
       if(themeId!=='blue')assert.ok(!Buffer.from(image.blob).toString().includes('#32497B'));
     }
